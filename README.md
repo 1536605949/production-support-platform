@@ -46,7 +46,7 @@
 | **6 规划校验** | ⚠️ 仅白名单，无环 DAG 与类型契约待做 |
 | **7 持久化外壳** | PostgreSQL 工作流 + checkpoint，接口对齐 Temporal 子集，预留平滑切换 |
 | **8 可观测** | `contextvars` 全链路 trace、结构化日志、32 个数据面板 / 8 个分组的 Grafana、10 条告警规则 + Alertmanager 投递（含抑制规则） |
-| **9 评测闭环** | 238 个 pytest（6 项显式跳过并写明依赖）+ 分层验收（端到端 55 / LLM 链路 30 / 运营台 UI 17 / C 端 UI 60 / 观测链路 11）+ 18 条 badcase 回归门禁，均已接入发布门禁与 CI |
+| **9 评测闭环** | 297 个 pytest（6 项显式跳过并写明依赖）+ 分层验收（端到端 55 / LLM 链路 30 / 运营台 UI 17 / C 端 UI 60 / 观测链路 11）+ 18 条 badcase 回归门禁，均已接入发布门禁与 CI |
 | **10 结构化业务事实** | 商品目录 `sku` + 售后规则 `aftersale_rule` 落表；库存、价格、退货资格一律**查表**得出。退货资格返回**三值** `true`/`false`/`null`，`null` 表示「无法判定」而**不是拒绝** |
 
 第 10 项和第 4 项是刻意的双轨：退货政策在知识库里回答「规则是怎样的」（自然语言、可召回），
@@ -165,7 +165,7 @@ docker compose up -d --build
 
 # 跑测试
 pip install -r requirements-dev.txt
-pytest -q                     # 238 passed, 6 skipped
+pytest -q                     # 297 passed, 6 skipped
 
 # 分层验收（后几层对着真实部署跑）
 python3 scripts/acceptance_probe.py https://124.222.190.3/support   # 55 项：鉴权/路由/审批/持久化/SSE/指标
@@ -288,6 +288,6 @@ deployment/         compose + Caddyfile + 边缘 nginx 片段 + systemd 定时�
 observability/      Prometheus 规则 + Alertmanager 路由 + Grafana provisioning
   grafana/build_dashboard.py   看板生成器（写出前自校验指标存在性与网格无重叠）
 scripts/            边缘注入、端到端验收、LLM 探针、迁移、备份/还原校验、发布门禁
-tests/              238 个 pytest
+tests/              297 个 pytest
 docs/              产品文档（PRODUCT.md）、架构、运维、设计决策
 ```

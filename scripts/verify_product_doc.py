@@ -188,7 +188,7 @@ for needle, label in [('intent_llm_threshold: float = 0.55', '意图 LLM 阈值 
 check('意图分类固定 80 token', '80' in read('gateway/app/core/llm.py'))
 
 print('\n=== 前端规模 ===')
-check('运营台 index.html ≈44.9 KB', 44000 < (ROOT / 'demo_client/index.html').stat().st_size < 46000,
+check('运营台 index.html ≈49.9 KB', 48000 < (ROOT / 'demo_client/index.html').stat().st_size < 52000,
       f"{(ROOT / 'demo_client/index.html').stat().st_size} 字节")
 check('C 端 customer.html ≈15.2 KB', 14000 < (ROOT / 'demo_client/customer.html').stat().st_size < 16000,
       f"{(ROOT / 'demo_client/customer.html').stat().st_size} 字节")

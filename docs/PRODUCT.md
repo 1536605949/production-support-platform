@@ -235,7 +235,7 @@
 | 6 | 规划校验 | ❌ **未实现** | — | 只有白名单，缺无环 DAG 与类型契约 |
 | 7 | 持久化工作流外壳 | ✅ 完成 | `core/workflow.py` | 8 节点；接口对齐 Temporal 子集 |
 | 8 | 可观测 | ✅ 完成 | `core/observability.py` `metrics.py` `observability/` | 26 个指标族；32 数据面板/8 分组；10 条告警规则分 4 组 |
-| 9 | 评测闭环 | ✅ 完成 | `tests/` `scripts/` `evaluation/` | 238 pytest + 六层验收 + 18 条 badcase 回归 |
+| 9 | 评测闭环 | ✅ 完成 | `tests/` `scripts/` `evaluation/` | 297 pytest + 六层验收 + 18 条 badcase 回归 |
 | 10 | **结构化业务事实** | ✅ 完成（2.5.0） | `business_service/app/` | 库存/价格/退货资格一律**查表**；资格是三值 |
 
 ### 4.1 第 10 项与第 4 项是刻意的双轨
@@ -658,7 +658,7 @@ check_aftersale_eligibility(order_id)      ← 查 aftersale_rule 表
 
 | | 客服工作台 | C 端页面 |
 |---|---|---|
-| 文件 | `demo_client/index.html`（44.9 KB） | `demo_client/customer.html`（15.2 KB） |
+| 文件 | `demo_client/index.html`（49.9 KB） | `demo_client/customer.html`（15.2 KB） |
 | 路径 | `/support/` | `/support/customer.html` |
 | Tab | 3 个：对话 / 审批 / 指标 | 无 Tab |
 | 决策检查器 | ✅ 意图、置信度、召回来源、工具调用、耗时、trace_id、降级标记 | ❌ **一个都不显示** |
@@ -803,7 +803,7 @@ check_aftersale_eligibility(order_id)      ← 查 aftersale_rule 表
 
 | 层 | 覆盖什么 | **覆盖不到什么** | 结果 |
 |---|---|---|---|
-| `pytest` | 进程内逻辑：意图、治理、租户、工作流、迁移树、数据集、商品目录与售后规则 | 边缘 nginx 前缀重写、Caddy 缓冲、真实 TLS、真实模型 | **238 passed / 6 skipped**（收集 244） |
+| `pytest` | 进程内逻辑：意图、治理、租户、工作流、迁移树、数据集、商品目录与售后规则、plan 校验 | 边缘 nginx 前缀重写、Caddy 缓冲、真实 TLS、真实模型 | **297 passed / 6 skipped**（收集 303） |
 | `acceptance_probe.py` | 公网真实链路：鉴权/路由/审批/持久化/SSE/指标 | 前端 JS 能不能跑起来；模型是否真被调用 | **55 / 0** |
 | `llm_probe.py` | 模型确实被调用：token 与成本来自 provider 的 `usage` | 答案质量 | **30 / 0** |
 | `ui_smoke.sh`（运营台） | 真实 DOM 里跑真实页面：登录、流式渲染、Tab、退出 | 后端细节 | **17 / 0** |
@@ -1017,7 +1017,7 @@ curl -sk https://124.222.190.3/support/api/readyz | python3 -m json.tool
 
 **以本文档与 `README.md` 为准**；`CHANGELOG.md` 是逐版本的事实来源。
 `docs/PRODUCT.md` 自身的数字由 `scripts/verify_product_doc.py` 在发布门禁里
-逐条对着代码断言（当前 **102 项全部通过**），所以它不会像其它文档那样悄悄漂掉。
+逐条对着代码断言（当前 **105 项全部通过**），所以它不会像其它文档那样悄悄漂掉。
 
 ---
 
@@ -1095,7 +1095,7 @@ deployment/         compose + Caddyfile + 边缘 nginx 片段 + systemd 定时�
 observability/      Prometheus 规则 + Alertmanager 路由 + Grafana provisioning
   grafana/build_dashboard.py   看板生成器（写出前自校验指标存在性与网格无重叠）
 scripts/            边缘注入、端到端验收、LLM 探针、迁移、备份/还原校验、发布门禁、UI 冒烟
-tests/              238 个 pytest
+tests/              297 个 pytest
 evaluation/         18 条 badcase 数据集 + 基线 + 运行器
 docs/               架构、运维、设计决策、产品文档（本文）
 ```
