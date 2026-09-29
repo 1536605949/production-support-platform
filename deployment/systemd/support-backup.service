@@ -1,0 +1,22 @@
+[Unit]
+Description=Back up the support platform (PostgreSQL dump + Redis snapshot)
+Documentation=file:///home/ubuntu/support-platform/docs/OPERATIONS.md
+# Docker must be up before we can exec into the postgres container. Without
+# this the timer can fire during a reboot and fail with a confusing
+# "no such service" error from docker compose.
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/support-platform
+ExecStart=/bin/bash /home/ubuntu/support-platform/scripts/backup.sh
+# A hung docker exec would otherwise leave the unit in "activating" forever and
+# block the next run. 15 minutes is far above the observed runtime.
+TimeoutStartSec=900
+# Journal only: backup.sh already prints a clear success/failure summary, and
+# mail-on-failure needs an MTA this host does not have.
+StandardOutput=journal
+StandardError=journal

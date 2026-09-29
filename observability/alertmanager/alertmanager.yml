@@ -1,0 +1,72 @@
+# Alertmanager — the missing half of the alerting story.
+#
+# Prometheus already evaluates 10 rules in ../alerts.yml, but a rule with no
+# Alertmanager is a rule that fires into the void: the state changes, nothing
+# is delivered, and the only way to notice is to open the Prometheus UI and
+# read the Alerts tab. This file gives those rules a destination.
+#
+# **Alertmanager does not expand environment variables.** There is no
+# ``--config.expand-env`` flag (that one belongs to Loki/Promtail — a trap worth
+# naming, because the flag is widely documented for *those* and it fails here
+# with ``unknown long flag``). The webhook URL therefore reaches this file
+# through ``url_file``: the container's entrypoint writes the URL to
+# ``/tmp/alertmanager-webhook-url`` from ``ALERT_WEBHOOK_URL``, validates this
+# config with ``amtool check-config``, and only then execs Alertmanager. If the
+# URL is missing or the file is malformed the container refuses to start —
+# loudly, which is the only acceptable failure mode for a component whose whole
+# job is to tell someone when something is wrong.
+#
+# Delivery is only half of "the alert was seen". The other half is the
+# 「正在告警」 panel on the Grafana board, which reads ``ALERTS{alertstate="firing"}``
+# and therefore needs no notification channel at all. So even with no webhook
+# configured, a firing alert is visible in two places (Alertmanager UI and
+# Grafana) instead of zero.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: webhook
+  # Grouping by alertname+severity means one notification per *kind* of problem
+  # rather than one per affected series — a flapping upstream produces a single
+  # message, not a hundred.
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical pages sooner and repeats more often; info is a digest.
+    - matchers: ['severity="critical"']
+      receiver: webhook
+      group_wait: 10s
+      repeat_interval: 1h
+    - matchers: ['severity="info"']
+      receiver: webhook
+      repeat_interval: 12h
+
+inhibit_rules:
+  # When the gateway is down, every downstream symptom fires at once: 5xx rate,
+  # TTFT, completion rate, cost. Those are consequences, not causes. Inhibiting
+  # them leaves the on-call with the one alert that matters.
+  - source_matchers: ['alertname="GatewayDown"']
+    target_matchers: ['severity=~"warning|info"']
+    equal: []
+  # A critical for a given alertname outranks its own info-level twin.
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="info"']
+    equal: ['alertname']
+
+receivers:
+  - name: webhook
+    webhook_configs:
+      # ``url_file`` rather than ``url``: the URL comes from ALERT_WEBHOOK_URL at
+      # container start (see the header). The two fields are mutually exclusive,
+      # and ``url_file`` is what lets a secret stay out of the repository.
+      #
+      # Set ALERT_WEBHOOK_URL to a WeCom / DingTalk / Feishu bot URL (or any
+      # endpoint that accepts a JSON POST) to actually receive notifications.
+      - url_file: /tmp/alertmanager-webhook-url
+        send_resolved: true
+        max_alerts: 20
+        timeout: 10s

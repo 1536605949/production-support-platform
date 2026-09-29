@@ -1,0 +1,51 @@
+# Normalise line endings on commit so the Linux deployment and CI see LF.
+#
+# Why this matters here: the project builds on Linux (Docker images, Caddy
+# config, shell scripts) but is edited on Windows. Without this, a `.sh` file
+# committed with CRLF fails at runtime with `bad interpreter: /bin/bash^M` —
+# a failure that looks like a broken image rather than a line-ending problem.
+* text=auto eol=lf
+
+# Shell / build files must be LF or they will not execute on the server.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+*.conf text eol=lf
+*.sql text eol=lf
+
+# Windows-only scripts stay CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Binary — never touched by text conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary
+*.gz binary
+
+# Generated integrity files: a hash list must not be rewritten by git.
+SHA256SUMS.txt -text
+MANIFEST.txt -text
+
+# Keep diffs readable in review for these generated/structured files.
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.html text eol=lf
+*.css text eol=lf

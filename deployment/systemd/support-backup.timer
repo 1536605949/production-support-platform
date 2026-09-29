@@ -1,0 +1,17 @@
+[Unit]
+Description=Nightly backup of the support platform
+
+[Timer]
+# 03:20 rather than midnight: the small hours are when a long-running restore
+# test is least likely to overlap with anyone using the demo.
+OnCalendar=*-*-* 03:20:00
+# If the host was powered off at 03:20, run once shortly after boot instead of
+# silently skipping the night. Without this, a machine that reboots nightly
+# never gets backed up at all — and nothing says so.
+Persistent=true
+# Spread the load in case other timers on this host also fire at :20.
+RandomizedDelaySec=300
+Unit=support-backup.service
+
+[Install]
+WantedBy=timers.target

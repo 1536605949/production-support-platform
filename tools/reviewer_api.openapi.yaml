@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: Human Refund Reviewer API
+  version: 2.6.0
+  description: >-
+    Reviewer-only API. Configure this as a separate Dify Custom Tool provider
+    with X-Reviewer-API-Key. Do not attach this provider to an autonomous Agent node.
+servers:
+  - url: https://YOUR-BUSINESS-SERVICE.example.com
+security:
+  - ReviewerApiKey: []
+paths:
+  /refunds/review:
+    post:
+      operationId: review_refund
+      summary: Approve or reject a pending refund proposal as a human reviewer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, order_id, decision]
+              properties:
+                user_id: {type: string}
+                order_id: {type: string}
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                review_comment: {type: string}
+      responses:
+        '200':
+          description: Review persisted before any execution
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposal_id: {type: string}
+                  order_id: {type: string}
+                  status:
+                    type: string
+                    enum: [approved, rejected]
+                  reviewer_id: {type: string}
+        '401': {description: Reviewer credential missing or invalid}
+        '404': {description: Pending proposal not found}
+components:
+  securitySchemes:
+    ReviewerApiKey:
+      type: apiKey
+      in: header
+      name: X-Reviewer-API-Key

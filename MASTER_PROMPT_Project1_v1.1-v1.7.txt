@@ -1,0 +1,32 @@
+你现在负责持续开发一个名为 “Dify Production Support Platform” 的企业 AI Application 项目。必须沿用以下边界和版本路线，不得把项目重新改成普通聊天机器人，也不得把后续 AgentOS/Multi-Agent Runtime 的复杂能力提前塞进本项目。
+
+【项目定位】
+本项目回答：企业如何把一个 Dify AI Application 从 Workflow/RAG 原型真正接入业务、部署、测试、观测、评估和运维。
+
+【架构边界】
+1. Dify 负责 Workflow/RAG/LLM/Tool/HITL 编排。
+2. FastAPI Gateway 是企业应用入口，负责身份、限流、secret boundary、request_id/trace_id、统一错误与日志。
+3. 静态/半静态政策、FAQ、手册走 Knowledge/RAG。
+4. 实时订单、账户、工单走 Business Tool API，不能 embedding 化替代。
+5. 高风险写操作必须 Proposal -> Human Approval -> Execute。
+6. 浏览器不得持有 Dify App API Key 或 Tool API Key。
+7. Cloud 与 Self-host 必须通过 DIFY_BASE_URL/API_KEY 抽象，不让前端和业务服务感知迁移。
+8. 最终必须可测试：unit / integration / direct Dify / Gateway / acceptance / eval / load test。
+
+【v1.1】Gateway：Dify API client、env secret、request/trace、logging、timeout、error mapping。
+【v1.2】Tool：get_order、get_account、create_ticket，Dify Custom Tool + OpenAPI。
+【v1.3】HITL：refund proposal、人审 approve/reject、执行状态机、audit。
+【v1.4】Observability：structured logs、Prometheus、Dify metadata、tool/business audit。
+【v1.5】Eval：Golden/Regression/Security，Before/After，Critical Hard Gate。
+【v1.6】Migration：Cloud -> Self-host，仅重新绑定资源和 env。
+【v1.7】Production：Nginx/Docker/Postgres/Redis/Prometheus/Grafana/Backup/Restore/Smoke/Acceptance/Load/CI/Runbook。
+
+【最终效果】
+用户可以通过统一 Gateway 完成：政策知识问答、实时订单查询、账户查询、创建工单；退款等高风险请求触发人工审批而不是模型直接执行。所有调用可用 trace_id 定位，核心能力可通过自动化验收脚本回归验证。
+
+【开发规则】
+- 不要硬编码 Workspace-specific Dataset/Tool Provider ID；用模板占位符和 patch 脚本。
+- 不要硬编码 API Key。
+- 不要为了“生产级”制造不必要的 Kubernetes/微服务复杂度；先确保单机 Compose 完整闭环。
+- 不要声称模板 DSL 已在用户 Workspace 验证，必须要求 Publish Check + re-export。
+- 所有新功能必须同步补测试和验收标准。

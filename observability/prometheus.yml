@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  # Attached to every alert and every scraped series, so a notification says
+  # which environment it came from without anyone having to remember.
+  external_labels:
+    env: production
+    stack: support-platform
+rule_files:
+  - /etc/prometheus/alerts.yml
+# Without this block the rules in alerts.yml are evaluated and their state is
+# visible in the Prometheus UI, but nothing is ever delivered. Alertmanager is
+# the component that turns "the rule is firing" into "a human was told".
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      timeout: 10s
+      api_version: v2
+scrape_configs:
+  - job_name: gateway
+    static_configs: [{targets: ['gateway:8000']}]
+    metrics_path: /metrics
+  - job_name: business_service
+    static_configs: [{targets: ['business-service:9000']}]
+    metrics_path: /metrics
+  # Prometheus scraping itself is what makes the dashboard's own panels
+  # trustworthy: if this target is missing, `up` says nothing about Prometheus.
+  - job_name: prometheus
+    static_configs: [{targets: ['localhost:9090']}]
+  - job_name: alertmanager
+    static_configs: [{targets: ['alertmanager:9093']}]

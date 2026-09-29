@@ -1,0 +1,70 @@
+# Caddy: application-layer reverse proxy for the support platform.
+#
+# Where TLS terminates and why:
+#   Port 443 on this host is owned by a shared edge nginx that also serves
+#   another project. A single port can only have one owner, so Caddy does not
+#   try to take it. Instead the edge nginx terminates TLS and forwards
+#   ``/support/*`` here; Caddy then does the routing that belongs to this
+#   application: API vs static assets, SSE buffering, security headers.
+#
+#   When this project gets its own domain, delete the edge nginx location and
+#   change the site address below to ``support.example.com`` — Caddy will
+#   obtain and renew a Let's Encrypt certificate on its own, and everything
+#   else in this file keeps working unchanged.
+
+:8080 {
+	# Structured access logs with the trace id, so one grep reconstructs a
+	# request across the edge, Caddy and the gateway.
+	log {
+		output stdout
+		format json
+	}
+
+	# Gzip/zstd for the static UI. SSE is never compressed (Caddy skips
+	# text/event-stream), so streaming is unaffected.
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# ------------------------------------------------------------------ API -- #
+	handle /api/* {
+		reverse_proxy gateway:8000 {
+			# SSE: never buffer, never time out mid-answer. Without this the
+			# first token can sit in a buffer and the UI looks frozen even
+			# though the model is already streaming.
+			flush_interval -1
+			transport http {
+				read_timeout 3600s
+				write_timeout 3600s
+			}
+		}
+	}
+
+	# Metrics are scraped inside the private network by Prometheus, but
+	# exposing them here keeps ad-hoc debugging simple. They contain no user
+	# data — only counters and histograms.
+	#
+	# The rewrite is load-bearing. The gateway mounts the metrics app at
+	# ``/metrics``, and Starlette answers a bare ``/metrics`` with a 307 to
+	# ``/metrics/``. That Location header is an *absolute path*, so behind the
+	# edge's ``/support/`` prefix it escapes the prefix entirely: the browser
+	# follows it to ``/metrics/`` at the site root, which belongs to a different
+	# application on this host. Rewriting internally keeps the whole exchange
+	# inside this server block and returns 200 directly.
+	handle /metrics* {
+		rewrite * /metrics/
+		reverse_proxy gateway:8000
+	}
+
+	# ------------------------------------------------------------- static UI -- #
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

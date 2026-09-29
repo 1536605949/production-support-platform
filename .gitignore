@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.coverage
+htmlcov/
+*.log
+
+# Runtime data
+data/
+*.db
+backups/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Local assistant memory — per-machine notes, not project source. Committing it
+# would publish the working log of whoever ran the assistant here.
+.workbuddy-ai/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+evaluation/latest_report.json
+tools/*.bound.openapi.yaml
+dify/workflows/*.bound.dify.yml

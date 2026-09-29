@@ -1,0 +1,105 @@
+# Alert rules for the support platform.
+#
+# Each rule maps to a number the architecture commits to: availability, answer
+# quality (TTFT / completion), the human-handoff escape hatch, cost, and the
+# governance backlog. A rule that nobody would act on was left out on purpose.
+
+groups:
+- name: support-availability
+  rules:
+  - alert: GatewayHigh5xxRate
+    expr: sum(rate(gateway_requests_total{status=~"5.."}[5m])) > 0.1
+    for: 5m
+    labels: {severity: warning}
+    annotations:
+      summary: "网关 5xx 速率升高"
+      description: "5 分钟窗口内 5xx 超过 0.1 rps。先看 trace_id，再定位是 LLM、检索还是数据库。"
+
+  - alert: GatewayDown
+    expr: up{job="gateway"} == 0
+    for: 2m
+    labels: {severity: critical}
+    annotations:
+      summary: "网关不可达"
+
+- name: support-quality
+  rules:
+  - alert: SlowFirstToken
+    # TTFT is the number users feel. p95 over 3s means the trunk is stalling —
+    # usually the LLM node, sometimes a cold knowledge index rebuild.
+    expr: histogram_quantile(0.95, sum(rate(gateway_ttft_seconds_bucket[10m])) by (le)) > 3
+    for: 10m
+    labels: {severity: warning}
+    annotations:
+      summary: "首字延迟 p95 > 3s"
+      description: "检查 LLM 上游耗时与检索耗时；确定性路径的 TTFT 应接近 0。"
+
+  - alert: LowCompletionRate
+    expr: >
+      sum(rate(gateway_chat_outcomes_total{outcome="answered"}[15m]))
+      / clamp_min(sum(rate(gateway_chat_outcomes_total[15m])), 0.001) < 0.9
+    for: 15m
+    labels: {severity: warning}
+    annotations:
+      summary: "回答完成率低于 90%"
+      description: "多数请求降级到了模板回答。优先确认 LLM 供应商状态。"
+
+  - alert: HighHandoffRate
+    # A rising handoff rate is not automatically bad — it means the system
+    # knows its limits. But it must be visible, because it is a staffing signal.
+    expr: >
+      sum(rate(gateway_handoffs_total[30m]))
+      / clamp_min(sum(rate(gateway_chat_outcomes_total[30m])), 0.001) > 0.3
+    for: 30m
+    labels: {severity: info}
+    annotations:
+      summary: "转人工率超过 30%"
+      description: "可能是知识库覆盖不足或意图阈值过严。"
+
+- name: support-governance
+  rules:
+  - alert: ApprovalBacklog
+    expr: sum(increase(gateway_tool_calls_total{status="waiting_approval"}[1h])) > 20
+    for: 15m
+    labels: {severity: warning}
+    annotations:
+      summary: "审批积压"
+      description: "1 小时内新增待审批超过 20 笔，用户会在等待中流失。"
+
+  - alert: StateMachineViolations
+    # Non-zero means something tried an illegal transition. That is either a
+    # bug or an attack, and both deserve attention immediately.
+    expr: increase(gateway_state_machine_violations_total[10m]) > 0
+    for: 1m
+    labels: {severity: critical}
+    annotations:
+      summary: "出现非法状态迁移"
+      description: "查看 gateway_state_machine_violations_total 的 entity/from/to 标签。"
+
+  - alert: QuotaRejectionSpike
+    expr: sum(rate(gateway_quota_rejections_total[10m])) > 1
+    for: 10m
+    labels: {severity: info}
+    annotations:
+      summary: "配额/限流拒绝升高"
+      description: "可能是正常放量，也可能是单租户异常刷量。"
+
+- name: support-cost
+  rules:
+  - alert: LLMCostSpike
+    expr: sum(rate(gateway_llm_cost_usd_total[30m])) * 86400 > 50
+    for: 30m
+    labels: {severity: warning}
+    annotations:
+      summary: "按当前速率日成本将超过 50 USD"
+      description: "先看 gateway_llm_calls_total 的 purpose 分布，确认是意图兜底还是回答节点。"
+
+  - alert: LLMErrorRate
+    expr: >
+      sum(rate(gateway_llm_calls_total{status!="ok"}[10m]))
+      / clamp_min(sum(rate(gateway_llm_calls_total[10m])), 0.001) > 0.2
+    for: 10m
+    labels: {severity: warning}
+    annotations:
+      summary: "LLM 调用失败率超过 20%"
+      description: "熔断器可能已打开，此时系统会降级为确定性回答。"

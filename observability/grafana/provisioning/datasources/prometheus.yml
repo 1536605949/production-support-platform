@@ -1,0 +1,14 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    # The uid is pinned because the provisioned dashboard references it. Without
+    # an explicit uid Grafana derives one per volume, so a redeploy onto a fresh
+    # volume leaves every panel showing "Datasource not found" — a failure that
+    # only appears on the *second* deployment, after the first looked fine.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s

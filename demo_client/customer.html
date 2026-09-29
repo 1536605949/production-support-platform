@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>在线客服</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#1c2024; --muted:#6b7280;
+    --accent:#2563eb; --accent-soft:#eff4ff; --ok:#0f766e; --warn:#b45309; --danger:#b91c1c;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--panel);
+         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  header h1{font-size:15px;margin:0;font-weight:600}
+  header .spacer{flex:1}
+  .chip{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;padding:8px 14px}
+  button:hover{border-color:#c9ced6}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+  button.ghost:hover{background:#eef0f3}
+  input,textarea{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;width:100%}
+  input:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  a.link{font-size:13px;color:var(--muted);text-decoration:none}
+  a.link:hover{color:var(--accent)}
+  .hidden{display:none !important}
+
+  .login{max-width:360px;margin:8vh auto;background:var(--panel);border:1px solid var(--line);
+         border-radius:var(--radius);padding:22px}
+  .login h2{font-size:15px;margin:0 0 14px;font-weight:600}
+  .login .row{margin-bottom:12px}
+  .login label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .login .err{color:var(--danger);font-size:13px;min-height:20px}
+  .login .ok{font-size:12px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+
+  .wrap{max-width:760px;margin:0 auto;padding:16px;display:flex;flex-direction:column;
+        height:calc(100vh - 53px)}
+  .thread{flex:1;min-height:0;overflow:auto;padding:4px 2px 8px}
+  .bubble{max-width:82%;padding:10px 14px;border-radius:var(--radius);margin-bottom:10px;
+          white-space:pre-wrap;word-break:break-word}
+  .bubble.user{margin-left:auto;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .bubble.assistant{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bubble .retry{display:block;margin-top:8px;font-size:13px;color:var(--danger)}
+  .empty{color:var(--muted);text-align:center;padding:36px 12px;font-size:13px}
+
+  .card{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fcfcfd}
+  .card .name{font-weight:600;margin-bottom:2px}
+  .card .sub{font-size:12px;color:var(--muted)}
+  .card .row{display:flex;align-items:baseline;gap:10px;margin-top:8px}
+  .card .price{font-size:17px;font-weight:600;color:var(--danger)}
+  .card .pill{font-size:12px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--muted)}
+  .card .pill.ok{color:var(--ok);border-color:#cbe8e2;background:#f0fbf8}
+  .card .pill.warn{color:var(--warn);border-color:#f2ddba;background:#fdf6ea}
+  .card .pill.out{color:var(--danger);border-color:#f4caca;background:#fdf1f1}
+
+  .quick{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0 10px}
+  .quick button{font-size:13px;padding:6px 13px;border-radius:999px;color:var(--accent);
+                border-color:#cddafd;background:var(--accent-soft)}
+  .quick button:hover{background:#e3ecff}
+  .composer{display:flex;gap:8px;align-items:flex-end}
+  .composer textarea{resize:none;height:52px;min-height:52px;max-height:140px}
+  .composer button{height:52px;padding:0 20px}
+  @media (max-width:600px){
+    .wrap{padding:10px;height:calc(100vh - 49px)}
+    .bubble{max-width:92%}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>在线客服</h1>
+  <span class="chip" id="identity">未登录</span>
+  <div class="spacer"></div>
+  <a class="link" href="index.html">客服工作台</a>
+  <button class="ghost hidden" id="logout">退出</button>
+</header>
+
+<div class="login" id="login">
+  <h2>登录后开始咨询</h2>
+  <div class="row"><label>邮箱</label><input id="l-email" value="customer@demo.local"></div>
+  <div class="row"><label>密码</label><input id="l-password" type="password" value="DemoCustomer123"></div>
+  <div class="err" id="l-err"></div>
+  <button class="primary" id="l-submit" style="width:100%">登录</button>
+  <div class="ok">演示账号：customer@demo.local / DemoCustomer123</div>
+</div>
+
+<main class="wrap hidden" id="app">
+  <div class="thread" id="thread">
+    <div class="empty">你好，我是在线客服。<br>可以问我订单物流、退货规则，也可以查商品库存。</div>
+  </div>
+
+  <div class="quick" id="quick">
+    <button data-say="我的订单到哪了？">查物流</button>
+    <button data-say="我想申请退货">申请退货</button>
+    <button data-say="SKU-1001 还有货吗？">查库存</button>
+  </div>
+
+  <div class="composer">
+    <textarea id="msg" placeholder="输入你的问题，Enter 发送，Shift+Enter 换行"></textarea>
+    <button class="primary" id="send">发送</button>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  // Served under /support/, so relative URLs resolve to /support/api/... without
+  // hardcoding a host.
+  var API = 'api';
+  // Deliberately the same localStorage keys as the operator console, so signing
+  // in on either page signs you in on both.
+  var store = {
+    get token() { return localStorage.getItem('support.token') || ''; },
+    set token(v) { v ? localStorage.setItem('support.token', v) : localStorage.removeItem('support.token'); },
+    get tenant() { return localStorage.getItem('support.tenant') || 'tenant-demo'; },
+    set tenant(v) { localStorage.setItem('support.tenant', v); }
+  };
+
+  var conversationId = '';
+  var streaming = false;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function money(v) {
+    var n = Number(v);
+    return isFinite(n) ? '¥' + n.toFixed(2) : '';
+  }
+
+  function headers() {
+    var h = { 'Content-Type': 'application/json' };
+    if (store.token) {
+      h['Authorization'] = 'Bearer ' + store.token;
+      h['X-Demo-Tenant'] = store.tenant;
+    }
+    return h;
+  }
+
+  // The backend's unified error envelope is { detail, error:{code,message,fields} }.
+  // Only ``message`` is surfaced here: this page has no place to put a code, and
+  // a raw status number tells a shopper nothing.
+  function messageFrom(res, body, text) {
+    var err = (body && body.error) || {};
+    if (err.message) return err.message;
+    if (body && typeof body.detail === 'string') return body.detail;
+    if (body && Array.isArray(body.detail)) {
+      return body.detail.map(function (d) { return d.msg || ''; }).filter(Boolean).join('；');
+    }
+    return text ? String(text).slice(0, 160) : ('HTTP ' + res.status);
+  }
+
+  // ---- auth -------------------------------------------------------------- //
+  function showLogin(message) {
+    $('login').classList.remove('hidden');
+    $('app').classList.add('hidden');
+    $('logout').classList.add('hidden');
+    $('identity').textContent = '未登录';
+    $('l-err').textContent = message || '';
+  }
+  function showApp() {
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('logout').classList.remove('hidden');
+    $('identity').textContent = '已登录 · ' + store.tenant;
+    $('msg').focus();
+  }
+
+  function submitLogin() {
+    $('l-err').textContent = '';
+    fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: 'tenant-demo',
+        email: $('l-email').value.trim(),
+        password: $('l-password').value
+      })
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var body = null;
+        try { body = text ? JSON.parse(text) : null; } catch (e) { body = null; }
+        if (!res.ok) throw new Error(messageFrom(res, body, text));
+        store.token = body.access_token;
+        store.tenant = body.tenant_id;
+        showApp();
+      });
+    }).catch(function (e) {
+      $('l-err').textContent = String(e.message || e);
+    });
+  }
+
+  $('l-submit').addEventListener('click', submitLogin);
+  ['l-email', 'l-password'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitLogin(); }
+    });
+  });
+  $('logout').addEventListener('click', function () { store.token = ''; showLogin(''); });
+
+  // ---- cards ------------------------------------------------------------- //
+  // Business facts are rendered as cards; everything *about* the pipeline
+  // (intent, confidence, retrieved passages, tool names, timings, trace id) is
+  // deliberately absent. The operator console shows all of it.
+  var ORDER_STATUS = {
+    shipped: '已发货', processing: '处理中', delivered: '已签收',
+    refund_processing: '退款处理中', cancelled: '已取消'
+  };
+
+  function skuCard(r) {
+    var label = r.spec ? esc(r.name) + ' <span class="sub">' + esc(r.spec) + '</span>' : esc(r.name);
+    var stock = Number(r.stock);
+    var pill;
+    if (r.status === 'off_shelf') {
+      pill = '<span class="pill out">已下架</span>';
+    } else if (!r.in_stock) {
+      pill = '<span class="pill out">暂时无货</span>';
+    } else if (stock <= 10) {
+      pill = '<span class="pill warn">仅剩 ' + stock + ' 件</span>';
+    } else {
+      pill = '<span class="pill ok">现货 ' + stock + ' 件</span>';
+    }
+    return '<div class="card">' +
+      '<div class="name">' + label + '</div>' +
+      '<div class="row"><span class="price">' + money(r.price) + '</span>' + pill + '</div>' +
+      '</div>';
+  }
+
+  function orderCard(r) {
+    var status = ORDER_STATUS[String(r.status)] || esc(r.status);
+    var pill = r.refund_available
+      ? '<span class="pill ok">可申请退款</span>'
+      : '<span class="pill">不可退款</span>';
+    return '<div class="card">' +
+      '<div class="name">订单 ' + esc(r.order_id) + '</div>' +
+      '<div class="row"><span class="price">' + money(r.amount) + '</span>' + pill + '</div>' +
+      '<div class="sub" style="margin-top:6px">当前状态：' + esc(status) + '</div>' +
+      '</div>';
+  }
+
+  function cardFor(tool) {
+    if (!tool || !tool.result || typeof tool.result !== 'object') return '';
+    if (tool.tool === 'get_sku') return skuCard(tool.result);
+    if (tool.tool === 'get_order') return orderCard(tool.result);
+    return '';
+  }
+
+  // ---- chat -------------------------------------------------------------- //
+  function bubble(role, text) {
+    var box = $('thread');
+    if (box.querySelector('.empty')) box.innerHTML = '';
+    var el = document.createElement('div');
+    el.className = 'bubble ' + role;
+    el.textContent = text;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+    return el;
+  }
+
+  function send(text) {
+    text = (text || '').trim();
+    if (!text || streaming) return;
+    streaming = true;
+    $('send').disabled = true;
+    $('msg').value = '';
+
+    bubble('user', text);
+    var el = bubble('assistant', '…');
+    var answer = '';
+    var gotFinal = false;
+    var streamError = '';
+
+    fetch(API + '/chat/stream', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ message: text, conversation_id: conversationId })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (t) {
+          var b = null;
+          try { b = t ? JSON.parse(t) : null; } catch (e) { b = null; }
+          if (res.status === 401) { store.token = ''; showLogin('登录已过期，请重新登录'); }
+          throw new Error(messageFrom(res, b, t));
+        });
+      }
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return null;
+          buffer += decoder.decode(r.value, { stream: true });
+          var sep;
+          while ((sep = buffer.indexOf('\n\n')) >= 0) {
+            handle(buffer.slice(0, sep));
+            buffer = buffer.slice(sep + 2);
+          }
+          return pump();
+        });
+      }
+
+      function handle(chunk) {
+        if (chunk.indexOf('data: ') !== 0) return;
+        var payload = chunk.slice(6).trim();
+        if (!payload || payload === '[DONE]') return;
+        var evt;
+        try { evt = JSON.parse(payload); } catch (e) { return; }
+
+        if (evt.event === 'delta') {
+          answer += evt.text;
+          el.textContent = answer;
+          $('thread').scrollTop = $('thread').scrollHeight;
+        } else if (evt.event === 'replace') {
+          answer = evt.text;
+          el.textContent = answer;
+        } else if (evt.event === 'final') {
+          gotFinal = true;
+          if (evt.conversation_id) conversationId = evt.conversation_id;
+          answer = answer || evt.answer || '';
+          el.textContent = answer;
+          el.insertAdjacentHTML('beforeend', cardFor(evt.tool));
+          $('thread').scrollTop = $('thread').scrollHeight;
+        } else if (evt.event === 'error') {
+          streamError = evt.message || 'unknown';
+        }
+      }
+
+      return pump();
+    }).then(function () {
+      // A stream can end with no ``final`` event: a proxy reload, a dropped
+      // connection, a worker killed mid-answer. Without this the partial text
+      // sits there looking like a complete reply.
+      if (!gotFinal && !streamError) {
+        el.insertAdjacentHTML('beforeend',
+          '<span class="retry">回答没有发完，连接中断了，请重试。</span>');
+      } else if (streamError) {
+        el.insertAdjacentHTML('beforeend', '<span class="retry">服务暂时不可用，请稍后重试。</span>');
+      }
+    }).catch(function (e) {
+      el.textContent = String((e && e.message) || e);
+      el.classList.add('retry');
+    }).then(function () {
+      streaming = false;
+      $('send').disabled = false;
+      $('msg').focus();
+    });
+  }
+
+  $('send').addEventListener('click', function () { send($('msg').value); });
+  $('msg').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('msg').value); }
+  });
+  $('quick').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-say]');
+    if (btn) send(btn.dataset.say);
+  });
+
+  // ---- boot -------------------------------------------------------------- //
+  if (store.token) { showApp(); } else { showLogin(''); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+-r gateway/requirements.txt
+-r business_service/requirements.txt
+pytest==8.3.5
+pytest-cov==6.0.0
+locust==2.32.6
+PyYAML==6.0.2
+requests==2.32.3
+pytest-asyncio==0.25.3

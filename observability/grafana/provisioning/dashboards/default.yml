@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: Support Platform
+    folder: AI Support
+    type: file
+    options:
+      # Must be a path that already exists in the grafana image. A second bind
+      # mount aimed at a *new* directory (e.g. .../dashboards-json) fails on
+      # overlayfs with "read-only file system", so the JSON files live inside
+      # the provisioning tree that is already mounted.
+      path: /etc/grafana/provisioning/dashboards

@@ -1,0 +1,17 @@
+[Unit]
+Description=Verify the latest support-platform backup restores cleanly
+Documentation=file:///home/ubuntu/support-platform/docs/OPERATIONS.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/support-platform
+# Restores into a throwaway database and compares row counts, then drops it.
+# Non-destructive: it never touches the live ``support`` database.
+ExecStart=/bin/bash /home/ubuntu/support-platform/scripts/verify_latest_backup.sh
+TimeoutStartSec=900
+StandardOutput=journal
+StandardError=journal

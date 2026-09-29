@@ -1,0 +1,44 @@
+Dify Production Support Platform v1.7.1 - run order
+
+The authoritative setup is in README.md and docs/START_HERE.md.
+
+1. Business Service
+   pip install -r requirements-dev.txt
+   set DATABASE_URL=sqlite:///./data/business.db
+   set TOOL_API_KEY=dev-tool-key
+   set REVIEWER_API_KEY=dev-reviewer-key
+   set REVIEWER_ID=demo-reviewer
+   uvicorn business_service.app.main:app --port 9000
+
+2. Offline Gateway
+   set REDIS_URL=redis://127.0.0.1:6390/0
+   set DIFY_MOCK=1
+   set AUTH_MODE=dev
+   uvicorn gateway.app.main:app --port 8000
+
+3. Dify Custom Tools
+   Render tools/business_api.openapi.yaml with X-Tool-API-Key.
+   Render tools/reviewer_api.openapi.yaml with X-Reviewer-API-Key.
+   Import them as two separate Dify providers.
+
+4. Bind DSL
+   python scripts/patch_dify_dsl.py ^
+     --input dify/workflows/v1.7_production_custom_tool.template.dify.yml ^
+     --output dify/workflows/v1.7_production.bound.dify.yml ^
+     --dataset-id YOUR_DATASET_ID ^
+     --tool-provider-id YOUR_AGENT_TOOL_PROVIDER_ID ^
+     --reviewer-tool-provider-id YOUR_REVIEWER_TOOL_PROVIDER_ID
+
+5. Verify
+   pytest -q
+   python scripts/release_gate.py
+   python scripts/acceptance.py
+
+6. Compose
+   Copy deployment/.env.example to deployment/.env.
+   Fill all REPLACE/change values, then run docker compose.
+
+Important security invariant:
+   The Agent tool credential can create a refund proposal.
+   It cannot approve the proposal.
+   Only X-Reviewer-API-Key can persist approved/rejected state.

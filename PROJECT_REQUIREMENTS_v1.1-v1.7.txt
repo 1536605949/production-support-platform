@@ -1,0 +1,66 @@
+Project 1: Dify Production Support Platform
+v1.1 - v1.7 最终产品路径与效果目标
+
+============================================================
+总体目标
+============================================================
+把已经可以运行的 Dify RAG Workflow，从平台 Demo 演进为一个可以通过企业后端调用、访问实时业务系统、对高风险写操作进行人工审批、可追踪、可评估、可回归、可部署和可运维的 AI Application。
+
+最终形态：
+Client -> Nginx -> FastAPI Gateway -> Dify Runtime -> RAG / Tool / HITL -> Business System
+旁路能力：Audit / Trace / Metrics / Eval / Regression / Backup / Load Test / Runbook
+
+============================================================
+v1.1 FastAPI Gateway
+============================================================
+目标：建立 AI Application 的稳定 API Boundary。
+要求：Dify API Key 只在服务器端；统一请求/响应；request_id；trace_id；timeout；error mapping；日志；配置通过 env；前端不直连 Dify。
+验收：Dify 直连 PASS；Gateway -> Dify PASS；只替换 DIFY_BASE_URL/API_KEY 即可切换 Cloud/Self-host。
+
+============================================================
+v1.2 Business Tool Integration
+============================================================
+目标：静态政策走 RAG，实时业务数据走 Tool API。
+工具：get_order / get_account / create_ticket。
+要求：Custom Tool OpenAPI；业务服务；参数提取；工具调用结果作为证据；禁止模型虚构订单状态/工单 ID。
+验收：具体订单查询走 Tool；账户查询走 Tool；创建工单返回真实 ticket_id；未知订单不能编造。
+
+============================================================
+v1.3 HITL + Safe Write
+============================================================
+目标：高风险写操作必须人工批准。
+退款链：refund proposal -> Human Input -> approve/reject -> execute。
+要求：Read tool 与 Write tool 分离；审批审计；拒绝不执行；批准后执行；幂等/状态机。
+验收：未批准绝对不能执行 refund；reject 后状态保持未执行；approve 后只执行一次。
+
+============================================================
+v1.4 Observability + Trace
+============================================================
+目标：每个请求可以端到端定位。
+要求：request_id / trace_id；Gateway latency；Dify metadata；Tool latency；HTTP status；error；Prometheus metrics；结构化日志；业务 audit。
+验收：任意一次调用能通过 trace_id 找到入口、Dify 调用与工具/业务事件。
+
+============================================================
+v1.5 Evaluation + Regression
+============================================================
+目标：模型优化从“感觉”升级为“量化”。
+数据集：Golden + Regression + Security。
+指标：HTTP success；keyword/correctness proxy；unsupported refusal；tool success；critical hard gate；latency。
+验收：同一 Dataset 可重复跑；优化前后可比较；critical case 失败阻止 release。
+
+============================================================
+v1.6 Cloud -> Self-host Migration
+============================================================
+目标：应用与 AI Runtime 解耦。
+要求：Export DSL；重新绑定 Model/Knowledge/Tool；Gateway 只改环境变量；业务服务和 Eval 不改。
+验收：Cloud 与 Self-host 使用相同 Gateway contract；迁移不要求改前端协议。
+
+============================================================
+v1.7 Production Hardening
+============================================================
+目标：形成可展示、可部署、可验证的最终产品。
+要求：Nginx；Gateway；Business Service；Postgres；Redis；Prometheus；Grafana；Docker Compose；Secrets；Rate Limit；JWT/Dev Auth；Backup/Restore；Smoke Test；Acceptance；Locust；Runbook；CI。
+验收：所有 release gate 通过；关键故障有恢复步骤；README 可让新开发者按步骤复现。
+
+最终面试表达：
+“我把一个 Dify Workflow/RAG 原型演进成企业 AI Application：通过 FastAPI Gateway 建立稳定 API Boundary；用 Custom Tool 接实时订单/账户/工单；用 HITL 限制退款等高风险写操作；建立 request/trace、metrics、audit、Golden/Regression Evaluation；最后通过 Docker/Nginx/Postgres/Redis 和发布验收脚本完成生产化闭环。”

@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>生产级电商客服平台</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#1c2024; --muted:#6b7280;
+    --accent:#2563eb; --accent-soft:#eff4ff; --ok:#0f766e; --warn:#b45309; --danger:#b91c1c;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text)}
+  header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--panel);
+         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  header h1{font-size:15px;margin:0;font-weight:600}
+  header .spacer{flex:1}
+  .chip{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .tabs{display:flex;gap:4px}
+  .tab{padding:6px 14px;border-radius:999px;cursor:pointer;border:1px solid transparent;font-size:13px}
+  .tab.active{background:var(--accent-soft);color:var(--accent);border-color:#cddafd;font-weight:600}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;padding:7px 14px}
+  button:hover{border-color:#c9ced6}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+  button.ghost:hover{background:#eef0f3}
+  input,textarea{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%}
+  input:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .layout{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:14px;padding:14px;height:calc(100vh - 53px)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;min-height:0}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0;padding:12px 14px 8px}
+  .scroll{overflow:auto;flex:1;min-height:0}
+  .conv{padding:10px 14px;border-top:1px solid var(--line);cursor:pointer;font-size:13px}
+  .conv:hover{background:#fafbfc}
+  .conv.active{background:var(--accent-soft);border-left:3px solid var(--accent);padding-left:11px}
+  .conv .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .conv .m{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:8px}
+  .badge{font-size:10px;padding:1px 6px;border-radius:999px;background:#eef0f3;color:var(--muted)}
+  .badge.warn{background:#fef3c7;color:var(--warn)}
+  .badge.danger{background:#fee2e2;color:var(--danger)}
+  .badge.ok{background:#ccfbf1;color:var(--ok)}
+  .thread{padding:16px;display:flex;flex-direction:column;gap:14px}
+  .bubble{max-width:78%;padding:11px 14px;border-radius:12px;white-space:pre-wrap;word-break:break-word}
+  .bubble.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+  .bubble.assistant{align-self:flex-start;background:#f1f3f5;border-bottom-left-radius:3px}
+  .bubble .meta{font-size:11px;color:var(--muted);margin-top:8px;display:flex;flex-wrap:wrap;gap:8px}
+  .bubble.user .meta{color:#dbe6ff}
+  .bubble.system{align-self:center;background:#fff7ed;color:var(--warn);font-size:12px;border:1px solid #fed7aa}
+  .composer{border-top:1px solid var(--line);padding:12px;display:flex;gap:10px;align-items:flex-end}
+  .composer textarea{resize:none;height:44px;max-height:140px}
+  .hint{font-size:11px;color:var(--muted);padding:0 14px 10px}
+  .inspect{padding:14px;display:flex;flex-direction:column;gap:14px}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv b{font-weight:600}
+  .src{font-size:12px;border-left:3px solid var(--accent);padding:4px 0 4px 8px;margin-bottom:8px;color:#374151}
+  .src .s{color:var(--muted);font-size:11px}
+  .login{max-width:380px;margin:60px auto;background:var(--panel);border:1px solid var(--line);
+         border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:12px}
+  .login h2{margin:0;font-size:17px}
+  .login .row{display:flex;flex-direction:column;gap:5px}
+  .login label{font-size:12px;color:var(--muted)}
+  .err{color:var(--danger);font-size:12px;min-height:16px}
+  .ok{color:var(--ok);font-size:12px;line-height:1.9}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:13px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;padding:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card .n{font-size:22px;font-weight:600;margin-top:4px}
+  .card .l{font-size:12px;color:var(--muted)}
+  .full{grid-column:1/-1}
+  .hidden{display:none!important}
+  code{background:#f1f3f5;padding:1px 5px;border-radius:4px;font-size:12px}
+
+  /* toasts — replace alert(), which blocked the page and could not be styled,
+     could not be read back in a test, and stacked badly on repeated failures */
+  .toasts{position:fixed;top:14px;right:14px;z-index:99;display:flex;flex-direction:column;
+          gap:8px;max-width:340px}
+  .toast{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+         border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.08);
+         animation:slideIn .18s ease-out}
+  .toast.error{border-left-color:var(--danger)}
+  .toast.warn{border-left-color:var(--warn)}
+  .toast.ok{border-left-color:var(--ok)}
+  .toast .tt{font-weight:600;margin-bottom:2px}
+  .toast .tb{color:var(--muted);font-size:12px;word-break:break-word;white-space:pre-wrap}
+  .toast .tx{cursor:pointer;color:var(--accent);font-size:12px;margin-top:6px;
+             display:inline-block;user-select:none}
+  @keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+
+  /* A degraded answer is not an error, but it is not model output either.
+     Without a visible marker the operator cannot tell a template fallback
+     from a real answer — which is exactly the state that must be observable. */
+  .bubble.assistant.degraded{background:#fff7ed;border:1px solid #fed7aa}
+
+  /* Plan verification. The gate ledger is a checklist, not prose: eight checks
+     that either passed or did not. A rejection is deliberately louder than a
+     pass, because the only other evidence that a plan was refused is that
+     nothing happened — and "nothing happened" looks identical to "no work was
+     needed". */
+  .plan{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fafbfc}
+  .plan.rejected{border-color:#fecaca;background:#fef2f2}
+  .plan .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;
+            font-size:12px;font-weight:600;margin-bottom:8px}
+  .step{font-size:12px;padding:6px 0;border-top:1px dashed var(--line)}
+  .step .sid{font-weight:600}
+  .step .edge{color:var(--muted);font-size:11px;margin-top:2px}
+  .gate{display:flex;justify-content:space-between;gap:8px;font-size:11px;
+        padding:2px 0;color:var(--muted)}
+  .gate.no{color:var(--danger);font-weight:600}
+  .gate span:last-child{text-align:right;word-break:break-word}
+
+  .bubble.assistant.incomplete{border:1px dashed var(--danger)}
+  .tag{font-size:10px;padding:1px 6px;border-radius:999px;background:#fef3c7;
+       color:var(--warn);margin-left:6px;white-space:nowrap}
+  .tag.danger{background:#fee2e2;color:var(--danger)}
+
+  /* horizontal bars for the metrics panel */
+  .bars{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .bar{display:flex;align-items:center;gap:8px;font-size:12px}
+  .bar .bl{width:120px;flex:none;color:var(--muted);overflow:hidden;
+           text-overflow:ellipsis;white-space:nowrap}
+  .bar .bt{flex:1;height:8px;background:#eef0f3;border-radius:999px;overflow:hidden}
+  .bar .bf{height:100%;background:var(--accent);border-radius:999px;transition:width .25s}
+  .bar .bv{width:46px;flex:none;text-align:right;color:var(--muted)}
+
+  /* metrics view. The previous version was a single flat grid of numbers with a
+     hardcoded 7-day window: every figure was a snapshot and there was no way to
+     see direction, so "are we getting better" was unanswerable. */
+  .metric-bar{display:flex;align-items:center;gap:10px;padding:12px 14px 0;flex-wrap:wrap}
+  .metric-bar .seg{display:flex;gap:4px}
+  .metric-bar .seg button{padding:4px 12px;font-size:12px;border-radius:999px}
+  .metric-bar .seg button.active{background:var(--accent-soft);border-color:#cddafd;
+    color:var(--accent);font-weight:600}
+  .metric-bar .stamp{margin-left:auto;font-size:11px;color:var(--muted)}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:70px;margin-top:12px}
+  .spark .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;
+    align-items:stretch;min-width:0;cursor:default}
+  .spark .col i{display:block;width:100%;background:var(--accent);border-radius:2px 2px 0 0;
+    min-height:2px}
+  .spark .col u{display:block;width:100%;background:var(--warn);border-radius:2px 2px 0 0}
+  .spark .axis{display:flex;gap:2px;margin-top:5px;font-size:10px;color:var(--muted)}
+  .spark .axis span{flex:1;text-align:center;overflow:hidden;white-space:nowrap}
+  .ratio{display:flex;height:10px;border-radius:999px;overflow:hidden;background:#eef0f3;margin-top:10px}
+  .ratio i{display:block;height:100%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend em{width:9px;height:9px;border-radius:2px;display:inline-block;font-style:normal}
+
+  /* The chat view is a fixed 3-column grid tuned for a desktop. On a narrow
+     window the columns collapsed to unusable slivers, so it now stacks. */
+  @media (max-width:1080px){
+    .layout{grid-template-columns:1fr!important;height:auto}
+    .layout .panel{min-height:300px}
+    .bubble{max-width:92%}
+    header{flex-wrap:wrap}
+  }
+  @media (max-width:640px){
+    .layout{padding:8px;gap:8px}
+    header h1{font-size:13px}
+    .tabs{order:3;width:100%;justify-content:space-between}
+    .toasts{left:14px;right:14px;max-width:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="toasts" id="toasts"></div>
+
+<header>
+  <h1>生产级电商客服平台</h1>
+  <span class="chip" id="identity">未登录</span>
+  <div class="spacer"></div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-view="chat">对话</div>
+    <div class="tab" data-view="approvals">审批</div>
+    <div class="tab" data-view="metrics">指标</div>
+  </div>
+  <a class="link" href="customer.html" style="font-size:13px;color:var(--muted);text-decoration:none">C 端页面</a>
+  <button class="ghost" id="logout">退出</button>
+</header>
+
+<!-- login -->
+<div class="login" id="login">
+  <h2>登录</h2>
+  <div class="row"><label>租户 ID</label><input id="l-tenant" value="tenant-demo"></div>
+  <div class="row"><label>邮箱</label><input id="l-email" value="customer@demo.local"></div>
+  <div class="row"><label>密码</label><input id="l-password" type="password" value="DemoCustomer123"></div>
+  <div class="err" id="l-err"></div>
+  <button class="primary" id="l-submit">登录</button>
+  <div class="ok">演示账号（预置）：<br>
+    customer@demo.local / DemoCustomer123<br>
+    reviewer@demo.local / DemoReviewer123<br>
+    admin@demo.local / DemoAdmin123
+  </div>
+  <button class="ghost" id="l-skip">跳过登录（开发模式身份）</button>
+</div>
+
+<!-- chat -->
+<div class="layout hidden" id="view-chat">
+  <div class="panel">
+    <h2>会话</h2>
+    <div class="scroll" id="convs"><div class="empty">暂无会话</div></div>
+    <div style="padding:10px 12px;border-top:1px solid var(--line)">
+      <button style="width:100%" id="new-conv">＋ 新建会话</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 id="thread-title">对话</h2>
+    <div class="scroll thread" id="thread"><div class="empty">发一条消息开始</div></div>
+    <div class="composer">
+      <textarea id="msg" placeholder="例如：帮我查一下订单 ORD-1001 的物流（Enter 发送，Shift+Enter 换行）"></textarea>
+      <button class="primary" id="send">发送</button>
+    </div>
+    <div class="hint" id="hint">确定性意图路由优先，低置信才调用模型兜底；退款等高危操作会进入人工审批。</div>
+  </div>
+
+  <div class="panel">
+    <h2>决策检查器</h2>
+    <div class="scroll inspect" id="inspect"><div class="empty">发送消息后显示意图、置信度、检索来源与工具调用</div></div>
+  </div>
+</div>
+
+<!-- approvals -->
+<div class="layout hidden" id="view-approvals" style="grid-template-columns:1fr">
+  <div class="panel">
+    <h2>待审批（高危操作）</h2>
+    <div class="scroll" id="approvals"><div class="empty">加载中…</div></div>
+  </div>
+</div>
+
+<!-- metrics -->
+<div class="hidden" id="view-metrics">
+  <div class="metric-bar">
+    <div class="seg" id="metric-range">
+      <button data-days="1">24 小时</button>
+      <button data-days="7" class="active">7 天</button>
+      <button data-days="30">30 天</button>
+    </div>
+    <button class="ghost" id="metric-refresh">刷新</button>
+    <span class="stamp" id="metric-stamp"></span>
+  </div>
+  <div class="cards" id="metrics"><div class="empty">加载中…</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // The page is served under /support/, so every relative URL below resolves
+  // to /support/api/... without hardcoding a host.
+  var API = 'api';
+  var store = {
+    get token() { return localStorage.getItem('support.token') || ''; },
+    set token(v) { v ? localStorage.setItem('support.token', v) : localStorage.removeItem('support.token'); },
+    get tenant() { return localStorage.getItem('support.tenant') || 'tenant-demo'; },
+    set tenant(v) { localStorage.setItem('support.tenant', v); }
+  };
+
+  var currentConversation = '';
+  var streaming = false;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ---- notifications ---------------------------------------------------- //
+  // Replaces alert(): non-blocking, styleable, assertable from a test, and it
+  // carries the trace id so a user can quote one line to an operator instead of
+  // describing a screenshot.
+  function toast(title, body, kind, traceId) {
+    var box = $('toasts');
+    if (!box) return;
+    var el = document.createElement('div');
+    el.className = 'toast ' + (kind || '');
+    el.innerHTML = '<div class="tt">' + esc(title) + '</div>' +
+      (body ? '<div class="tb">' + esc(body) + '</div>' : '') +
+      (traceId ? '<span class="tx" data-trace="' + esc(traceId) + '">复制 trace_id</span>' : '');
+    box.appendChild(el);
+    var copy = el.querySelector('.tx');
+    if (copy) {
+      copy.addEventListener('click', function () { copyText(copy.dataset.trace, copy); });
+    }
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, kind === 'error' ? 9000 : 4500);
+  }
+
+  function copyText(text, el) {
+    function done() { if (el) el.textContent = '已复制'; }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { /* clipboard denied */ }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  //: Human labels for the routing source. Showing the raw enum ("deterministic")
+  //: to a support operator is technically accurate and practically useless.
+  var SOURCE_LABEL = {
+    rule: '确定性规则',
+    deterministic: '确定性规则',
+    llm: '模型兜底',
+    fallback: '默认兜底'
+  };
+
+  function reportError(err, context) {
+    var title = context || '操作失败';
+    var body = (err && err.message) || '未知错误';
+    if (err && err.fields && err.fields.length) {
+      body = err.fields.map(function (f) { return f.field + '：' + f.message; }).join('\n');
+    }
+    if (err && err.status === 429) {
+      title = '请求过于频繁';
+      body = body + '\n请稍候几秒再试。';
+    } else if (err && err.status === 403) {
+      title = '没有权限';
+    } else if (err && err.status === 401) {
+      title = '登录已过期';
+    }
+    toast(title, body, 'error', err && err.traceId);
+  }
+
+  function headers(extra) {
+    var h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+    if (store.token) {
+      h['Authorization'] = 'Bearer ' + store.token;
+      h['X-Demo-Tenant'] = store.tenant;
+    } else {
+      // Dev-mode identity: the gateway accepts X-Demo-* only when AUTH_MODE=dev.
+      h['X-Demo-User'] = 'user001';
+      h['X-Demo-Tenant'] = 'tenant-demo';
+      h['X-Demo-Store'] = 'store-demo';
+      h['X-Demo-Roles'] = 'customer,reviewer,admin';
+    }
+    return h;
+  }
+
+  // Parse the backend's unified error envelope:
+  //   { detail: "<string>", error: { code, message, fields:[{field,message}] },
+  //     request_id, trace_id }
+  // ``detail`` is always a string from this backend, but a proxy or an older
+  // endpoint can still return FastAPI's raw 422 list, where ``detail`` is an
+  // *array*. Rendering ``body.detail`` blindly printed "[object Object]" for
+  // every validation failure, so that shape is handled explicitly as well.
+  function errorFrom(res, body, text) {
+    var err = (body && body.error) || {};
+    var message = err.message || '';
+    if (!message && body && typeof body.detail === 'string') message = body.detail;
+    if (!message && body && Array.isArray(body.detail)) {
+      message = body.detail.map(function (d) {
+        var loc = (d.loc || []).filter(function (p) { return p !== 'body'; }).join('.');
+        return (loc ? loc + '：' : '') + (d.msg || '');
+      }).join('；');
+    }
+    if (!message) message = text ? String(text).slice(0, 200) : ('HTTP ' + res.status);
+    return {
+      status: res.status,
+      code: err.code || ('http_' + res.status),
+      message: message,
+      fields: err.fields || [],
+      traceId: (body && body.trace_id) || res.headers.get('X-Trace-ID') || ''
+    };
+  }
+
+  function api(path, options) {
+    return fetch(API + path, Object.assign({ headers: headers() }, options || {}))
+      .then(function (res) {
+        return res.text().then(function (text) {
+          var body = null;
+          try { body = text ? JSON.parse(text) : null; } catch (e) { body = null; }
+          if (!res.ok) {
+            var err = errorFrom(res, body, text);
+            if (res.status === 401) { store.token = ''; showLogin('登录已过期，请重新登录'); }
+            throw err;
+          }
+          return body;
+        });
+      });
+  }
+
+  // ---- auth ------------------------------------------------------------- //
+  function showLogin(message) {
+    $('login').classList.remove('hidden');
+    $('view-chat').classList.add('hidden');
+    $('view-approvals').classList.add('hidden');
+    $('view-metrics').classList.add('hidden');
+    $('l-err').textContent = message || '';
+  }
+  function showApp() {
+    $('login').classList.add('hidden');
+    $('view-chat').classList.remove('hidden');
+    $('identity').textContent = store.token ? ('JWT · ' + store.tenant) : '开发模式身份 · tenant-demo';
+    loadConversations();
+  }
+
+  function submitLogin() {
+    $('l-err').textContent = '';
+    api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        tenant_id: $('l-tenant').value.trim(),
+        email: $('l-email').value.trim(),
+        password: $('l-password').value
+      })
+    }).then(function (body) {
+      store.token = body.access_token;
+      store.tenant = body.tenant_id;
+      showApp();
+    }).catch(function (e) {
+      // Inline message *and* toast: the inline one is where the eye already is,
+      // the toast is what carries the trace id for a server-side failure.
+      $('l-err').textContent = String(e.message || e);
+      reportError(e, '登录失败');
+    });
+  }
+
+  $('l-submit').addEventListener('click', submitLogin);
+  // Enter submits from any field — the form previously required a mouse trip
+  // to the button, which is the most common way to fill a three-field login.
+  ['l-tenant', 'l-email', 'l-password'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitLogin(); }
+    });
+  });
+
+  $('l-skip').addEventListener('click', function () { store.token = ''; showApp(); });
+  $('logout').addEventListener('click', function () { store.token = ''; showLogin(''); });
+
+  // ---- tabs ------------------------------------------------------------- //
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (tab) {
+    tab.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      ['chat', 'approvals', 'metrics'].forEach(function (v) {
+        $('view-' + v).classList.toggle('hidden', v !== tab.dataset.view);
+      });
+      if (tab.dataset.view === 'approvals') loadApprovals();
+      if (tab.dataset.view === 'metrics') loadMetrics();
+    });
+  });
+
+  // ---- metrics range switcher ------------------------------------------- //
+  // Delegated from the container so the buttons keep working after the cards
+  // are re-rendered (they are not, but the toolbar is outside #metrics and this
+  // avoids re-binding on every load).
+  $('metric-range').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button[data-days]');
+    if (!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function (b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    loadMetrics(Number(btn.dataset.days));
+  });
+  $('metric-refresh').addEventListener('click', function () { loadMetrics(); });
+
+  // ---- conversations ---------------------------------------------------- //
+  function loadConversations() {
+    return api('/conversations').then(function (list) {
+      var box = $('convs');
+      if (!list.length) { box.innerHTML = '<div class="empty">暂无会话</div>'; return; }
+      box.innerHTML = list.map(function (c) {
+        return '<div class="conv ' + (c.id === currentConversation ? 'active' : '') + '" data-id="' + esc(c.id) + '">' +
+          '<div class="t">' + esc(c.title || '新会话') + '</div>' +
+          '<div class="m"><span>' + esc(c.message_count) + ' 条</span>' +
+          (c.status !== 'active' ? '<span class="badge warn">' + esc(c.status) + '</span>' : '') +
+          (c.last_intent ? '<span class="badge">' + esc(c.last_intent) + '</span>' : '') +
+          '</div></div>';
+      }).join('');
+      Array.prototype.forEach.call(box.querySelectorAll('.conv'), function (el) {
+        el.addEventListener('click', function () { openConversation(el.dataset.id); });
+      });
+    }).catch(function (e) { $('convs').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+
+  function openConversation(id) {
+    currentConversation = id;
+    return api('/conversations/' + encodeURIComponent(id)).then(function (detail) {
+      $('thread-title').textContent = detail.conversation.title || '对话';
+      renderMessages(detail.messages);
+      loadConversations();
+    }).catch(function (e) { $('thread').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+
+  function renderMessages(messages) {
+    var box = $('thread');
+    if (!messages.length) { box.innerHTML = '<div class="empty">发一条消息开始</div>'; return; }
+    box.innerHTML = messages.map(bubbleHtml).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function bubbleHtml(m) {
+    var meta = [];
+    if (m.intent) meta.push('<span>意图 ' + esc(m.intent) + '</span>');
+    if (m.confidence) meta.push('<span>置信 ' + (m.confidence * 100).toFixed(0) + '%</span>');
+    if (m.intent_source) {
+      meta.push('<span>' + esc(SOURCE_LABEL[m.intent_source] || m.intent_source) + '</span>');
+    }
+    if (m.ttft_ms) meta.push('<span>首字 ' + Math.round(m.ttft_ms) + 'ms</span>');
+    if (m.latency_ms) meta.push('<span>总耗时 ' + Math.round(m.latency_ms) + 'ms</span>');
+    if ((m.sources || []).length) meta.push('<span>依据 ' + m.sources.length + ' 条</span>');
+    var cls = m.role === 'user' ? 'user' : (m.role === 'system' ? 'system' : 'assistant');
+    if (m.degraded) cls += ' degraded';
+    return '<div class="bubble ' + cls + '">' + esc(m.content) +
+      (m.degraded ? '<span class="tag">模板回退</span>' : '') +
+      (meta.length ? '<div class="meta">' + meta.join('') + '</div>' : '') + '</div>';
+  }
+
+  $('new-conv').addEventListener('click', function () {
+    currentConversation = '';
+    $('thread-title').textContent = '对话';
+    $('thread').innerHTML = '<div class="empty">发一条消息开始</div>';
+    $('inspect').innerHTML = '<div class="empty">发送消息后显示意图、置信度、检索来源与工具调用</div>';
+    loadConversations();
+  });
+
+  // ---- send + SSE ------------------------------------------------------- //
+  function send() {
+    var text = $('msg').value.trim();
+    if (!text || streaming) return;
+    streaming = true;
+    $('send').disabled = true;
+    $('msg').value = '';
+
+    var box = $('thread');
+    if (box.querySelector('.empty')) box.innerHTML = '';
+    box.insertAdjacentHTML('beforeend', '<div class="bubble user">' + esc(text) + '</div>');
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble assistant';
+    bubble.textContent = '…';
+    box.appendChild(bubble);
+    box.scrollTop = box.scrollHeight;
+
+    var started = performance.now();
+    var firstTokenAt = 0;
+    var answer = '';
+    var gotFinal = false;
+    var streamError = '';
+
+    fetch(API + '/chat/stream', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ message: text, conversation_id: currentConversation })
+    }).then(function (res) {
+      if (!res.ok) {
+        // Read the error envelope rather than throwing a bare status code: a
+        // 429 or a validation failure carries a message the user needs.
+        return res.text().then(function (t) {
+          var b = null;
+          try { b = t ? JSON.parse(t) : null; } catch (e) { b = null; }
+          var err = errorFrom(res, b, t);
+          if (res.status === 401) { store.token = ''; showLogin('登录已过期'); }
+          throw err;
+        });
+      }
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return null;
+          buffer += decoder.decode(r.value, { stream: true });
+          var sep;
+          while ((sep = buffer.indexOf('\n\n')) >= 0) {
+            var chunk = buffer.slice(0, sep);
+            buffer = buffer.slice(sep + 2);
+            handleChunk(chunk);
+          }
+          return pump();
+        });
+      }
+
+      function handleChunk(chunk) {
+        if (chunk.indexOf('data: ') !== 0) return;
+        var payload = chunk.slice(6).trim();
+        if (!payload || payload === '[DONE]') return;
+        var evt;
+        try { evt = JSON.parse(payload); } catch (e) { return; }
+
+        if (evt.event === 'delta') {
+          if (!firstTokenAt) firstTokenAt = performance.now() - started;
+          answer += evt.text;
+          bubble.textContent = answer;
+          box.scrollTop = box.scrollHeight;
+        } else if (evt.event === 'replace') {
+          answer = evt.text;
+          bubble.textContent = answer;
+        } else if (evt.event === 'final') {
+          gotFinal = true;
+          if (evt.conversation_id) currentConversation = evt.conversation_id;
+          answer = answer || evt.answer || '';
+          bubble.textContent = answer;
+          // ``degraded`` means the model was unavailable and this is the
+          // deterministic template. It is a valid answer, not an error, but an
+          // operator must be able to tell the two apart at a glance.
+          if (evt.degraded) {
+            bubble.classList.add('degraded');
+            bubble.insertAdjacentHTML('beforeend', '<span class="tag">模板回退</span>');
+          }
+          if (firstTokenAt) {
+            var src = evt.intent_source ? SOURCE_LABEL[evt.intent_source] || evt.intent_source : '';
+            bubble.insertAdjacentHTML('beforeend',
+              '<div class="meta"><span>首字 ' + Math.round(firstTokenAt) + 'ms</span>' +
+              '<span>总耗时 ' + Math.round(performance.now() - started) + 'ms</span>' +
+              (src ? '<span>' + esc(src) + '</span>' : '') + '</div>');
+          }
+          renderInspector(evt);
+        } else if (evt.event === 'error') {
+          streamError = evt.message || 'unknown';
+          bubble.insertAdjacentHTML('beforeend',
+            '<div class="meta" style="color:#b91c1c">流式错误：' + esc(streamError) + '</div>');
+        }
+      }
+
+      return pump();
+    }).then(function () {
+      // A stream can end with no ``final`` event at all: a Caddy reload, a
+      // dropped connection, a worker killed mid-answer. The bubble used to keep
+      // whatever partial text had arrived and look like a complete answer, so
+      // a truncated reply was indistinguishable from a finished one.
+      if (!gotFinal && !streamError) {
+        bubble.classList.add('incomplete');
+        bubble.insertAdjacentHTML('beforeend',
+          '<span class="tag danger">回答未完成</span>' +
+          '<div class="meta">连接在收到完整回答前中断，请重试。</div>');
+        toast('回答未完成', '连接提前中断，请重试。', 'warn');
+      }
+      return loadConversations();
+    }).catch(function (e) {
+      bubble.textContent = '请求失败：' + String((e && e.message) || e);
+      reportError(e, '发送失败');
+    }).then(function () {
+      streaming = false;
+      $('send').disabled = false;
+      $('msg').focus();
+    });
+  }
+
+  // A bare number is hard to judge at a glance; a bar shows immediately whether
+  // the router was confident or barely cleared the LLM threshold.
+  function confBar(v) {
+    var pct = Math.max(0, Math.min(1, Number(v) || 0)) * 100;
+    return '<span style="display:inline-flex;align-items:center;gap:6px">' +
+      '<span style="width:64px;height:6px;background:#eef0f3;border-radius:999px;' +
+      'overflow:hidden;display:inline-block">' +
+      '<span style="display:block;height:100%;width:' + pct.toFixed(0) +
+      '%;background:var(--accent)"></span></span>' +
+      '<b>' + pct.toFixed(1) + '%</b></span>';
+  }
+
+  // Gate names as the verifier reports them, in the operator's language. A raw
+  // `no_forward_reference` is a code; "无前向引用" is a statement about the plan.
+  var GATE_LABEL = {
+    structure: '结构',
+    unique_step_id: '步骤 id 唯一',
+    tool_and_arguments: '工具与参数白名单',
+    literal_arguments: '字面量参数契约',
+    dependencies_resolve: '依赖可解析',
+    acyclic: '无环（拓扑排序）',
+    no_forward_reference: '无前向引用',
+    type_contracts: '类型契约',
+    preconditions: '前置步骤'
+  };
+
+  // The plan and its verification ledger. Rendered for *every* turn that built
+  // a plan, including the turns where verification refused it — a refusal is
+  // the most important thing this panel can show, because the only other
+  // evidence of it is that no tool ran, which looks exactly like a turn that
+  // needed no tool.
+  function renderPlan(plan) {
+    if (!plan || !plan.steps) return '';
+    var v = plan.validation || {};
+    var ok = v.ok === true;
+    var html = '<div class="plan' + (ok ? '' : ' rejected') + '">' +
+      '<div class="hd"><span>执行计划 <code>' + esc(plan.plan_id || '-') + '</code></span>' +
+      '<span class="badge ' + (ok ? 'ok">校验通过' : 'danger">已拒绝') + '</span></div>';
+
+    if (!plan.steps.length) {
+      html += '<div class="edge" style="font-size:11px;color:var(--muted)">' +
+        '空 plan：本轮不需要调用工具</div>';
+    }
+    plan.steps.forEach(function (s, i) {
+      html += '<div class="step"><span class="sid">' + (i + 1) + '. ' + esc(s.tool) +
+        '</span> <code>' + esc(s.step_id) + '</code>';
+      var deps = s.depends_on || [];
+      if (deps.length) {
+        html += '<div class="edge">依赖 → ' + esc(deps.join('、')) + '</div>';
+      }
+      // `参数 x ← s2.y` is the edge that makes the plan auditable: it shows the
+      // value came from an earlier step's output rather than from the caller.
+      var inputs = s.inputs || {};
+      Object.keys(inputs).forEach(function (k) {
+        html += '<div class="edge">参数 ' + esc(k) + ' ← ' + esc(String(inputs[k])) + '</div>';
+      });
+      var args = s.arguments || {};
+      var keys = Object.keys(args);
+      if (keys.length) {
+        html += '<div class="edge">' + keys.map(function (k) {
+          return esc(k) + '=' + esc(String(args[k]));
+        }).join(' · ') + '</div>';
+      }
+      html += '</div>';
+    });
+
+    var checks = v.checks || [];
+    if (checks.length) {
+      html += '<div style="margin-top:8px">' + checks.map(function (c) {
+        return '<div class="gate' + (c.ok ? '' : ' no') + '"><span>' +
+          (c.ok ? '✓' : '✗') + ' ' + esc(GATE_LABEL[c.name] || c.name) + '</span>' +
+          (c.detail ? '<span>' + esc(c.detail) + '</span>' : '') + '</div>';
+      }).join('') + '</div>';
+    }
+    if (!ok && v.reason) {
+      // Say *why* the list may be short. Verification stops at the first
+      // failing gate because the later ones presuppose it: you cannot check a
+      // type contract across steps whose tools are not even known. Without this
+      // note an operator reads three rows and concludes only three checks ran.
+      var total = Object.keys(GATE_LABEL).length - 1;  // minus `structure`
+      if (checks.length < total) {
+        html += '<div class="gate"><span>校验在第一个失败处停止</span><span>' +
+          checks.length + ' / ' + total + ' 项已检查</span></div>';
+      }
+      html += '<div class="err" style="margin-top:6px">拒绝理由 <code>' + esc(v.reason) +
+        '</code>' + (v.detail ? ' — ' + esc(v.detail) : '') +
+        '<div style="color:var(--muted)">未调用任何业务服务，未产生资金操作。</div></div>';
+    }
+    return html + '</div>';
+  }
+
+  function renderInspector(evt) {
+    var src = evt.intent_source || '';
+    var rows = [
+      ['意图', esc(evt.intent_label || evt.intent || '-') + ' <code>' + esc(evt.intent || '') + '</code>'],
+      ['置信度', confBar(evt.confidence)],
+      ['判定来源', esc(SOURCE_LABEL[src] || src || '-') +
+        (src ? ' <code>' + esc(src) + '</code>' : '')],
+      ['转人工级别', String(evt.handoff_level || 0)],
+      ['工作流', '<code>' + esc(evt.workflow_run_id || '-') + '</code>'],
+      ['trace', '<code class="trace" data-trace="' + esc(evt.trace_id || '') + '" ' +
+        'title="点击复制">' + esc(evt.trace_id || '-') + '</code>'],
+      ['降级', evt.degraded ? '<span class="tag">模板回退</span>' : '否']
+    ];
+    var md = evt.metadata || {};
+    if (md.tokens_in != null) rows.push(['tokens', md.tokens_in + ' / ' + md.tokens_out]);
+    if (md.cost_usd != null) rows.push(['成本', '$' + Number(md.cost_usd).toFixed(6)]);
+
+    var html = rows.map(function (r) {
+      return '<div class="kv"><span>' + esc(r[0]) + '</span><b>' + r[1] + '</b></div>';
+    }).join('');
+
+    // The plan sits between "what the router decided" and "what actually ran",
+    // which is the order those things happen in.
+    html += renderPlan(evt.plan);
+
+    if (evt.tool) {
+      html += '<div class="kv"><span>工具</span><b>' + esc(evt.tool.tool) + '</b></div>';
+      html += '<div class="kv"><span>风险</span><b>' + esc(evt.tool.risk || '-') + '</b></div>';
+      html += '<div class="kv"><span>状态</span><b>' + esc(evt.tool.status || '-') + '</b></div>';
+    }
+    if (evt.approval_id) {
+      html += '<div class="kv"><span>审批单</span><b><code>' + esc(evt.approval_id) + '</code></b></div>';
+    }
+    var sources = evt.sources || [];
+    if (sources.length) {
+      html += '<div style="margin-top:6px"><div class="kv" style="border:0"><span>检索依据</span></div>' +
+        sources.map(function (s) {
+          // keyword_score / vector_score are what make the fusion explainable:
+          // a hit that came only from the vector channel should be visibly
+          // different from one BM25 found, otherwise "why did this match?" has
+          // no answer in the UI.
+          var parts = [];
+          if (s.keyword_score) parts.push('BM25 ' + Number(s.keyword_score).toFixed(3));
+          if (s.vector_score) parts.push('向量 ' + Number(s.vector_score).toFixed(3));
+          return '<div class="src">' + esc(s.title) +
+            '<div class="s">score ' + Number(s.score || 0).toFixed(4) +
+            ' · ' + esc(s.category || '') +
+            (parts.length ? ' · ' + esc(parts.join(' + ')) : '') + '</div></div>';
+        }).join('') + '</div>';
+    }
+    $('inspect').innerHTML = html;
+
+    var traceEl = $('inspect').querySelector('.trace');
+    if (traceEl && traceEl.dataset.trace) {
+      traceEl.style.cursor = 'pointer';
+      traceEl.addEventListener('click', function () {
+        copyText(traceEl.dataset.trace, traceEl);
+      });
+    }
+  }
+
+  $('send').addEventListener('click', send);
+  $('msg').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  // ---- approvals -------------------------------------------------------- //
+  function loadApprovals() {
+    var box = $('approvals');
+    // Clear first. Without this the panel keeps showing whatever it had — which
+    // after a role change means a stale "需要 reviewer 角色" message sits there
+    // while the new request is already in flight, so the UI looks like it still
+    // failed after a successful reload.
+    box.innerHTML = '<div class="empty">加载中…</div>';
+    return api('/approvals?status=pending').then(function (list) {
+      if (!list.length) { box.innerHTML = '<div class="empty">当前没有待审批的高危操作</div>'; return; }
+      box.innerHTML = '<table><thead><tr><th>审批单</th><th>工具 / 风险</th><th>参数</th><th>原因</th><th>操作</th></tr></thead><tbody>' +
+        list.map(function (a) {
+          return '<tr><td><code>' + esc(a.id) + '</code><div style="color:#6b7280;font-size:11px">' + esc(a.created_at) + '</div></td>' +
+            '<td>' + esc(a.tool_name) + '<div><span class="badge danger">' + esc(a.risk_level) + '</span></div></td>' +
+            '<td><code>' + esc(JSON.stringify(a.arguments)) + '</code></td>' +
+            '<td style="max-width:320px">' + esc(a.reason) + '</td>' +
+            '<td><button data-act="approve" data-id="' + esc(a.id) + '" class="primary">通过并执行</button> ' +
+            '<button data-act="reject" data-id="' + esc(a.id) + '">驳回</button></td></tr>';
+        }).join('') + '</tbody></table>';
+
+      Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (btn) {
+        btn.addEventListener('click', function () { decide(btn.dataset.id, btn.dataset.act, btn); });
+      });
+    }).catch(function (e) {
+      box.innerHTML = '<div class="empty">' + esc(e.message) + '（审批需要 reviewer 或 admin 角色）' +
+        '<div style="margin-top:10px;font-size:12px;line-height:1.7">' +
+        '演示：退出后用 <code>reviewer@demo.local</code> / <code>DemoReviewer123</code> 登录，' +
+        '即可看到待审批队列并决定通过或驳回。</div></div>';
+      // A 403 here is the expected outcome of a customer opening the approvals
+      // tab, so the in-panel explanation is enough — a toast on every tab click
+      // would be noise. Anything else is worth surfacing loudly.
+      if (e.status !== 403) reportError(e, '加载审批队列失败');
+    });
+  }
+
+  function decide(id, act, btn) {
+    var label = act === 'approve' ? '通过并执行' : '驳回';
+    btn.disabled = true;
+    btn.textContent = act === 'approve' ? '执行中…' : '驳回中…';
+    api('/approvals/' + encodeURIComponent(id) + '/decide', {
+      method: 'POST',
+      body: JSON.stringify({ decision: act, comment: act === 'approve' ? '后台审批通过' : '后台驳回' })
+    }).then(function () {
+      toast(act === 'approve' ? '已通过并执行' : '已驳回',
+            '审批结论已回写订单系统。', 'ok');
+      return loadApprovals();
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = label;
+      reportError(e, '审批操作失败');
+    });
+  }
+
+  // ---- metrics ---------------------------------------------------------- //
+  // The tenant-scoped console. Everything here is read back from the tables the
+  // trunk wrote, so a number cannot disagree with the behaviour it describes.
+  // Prometheus owns "is the service healthy" (see the Grafana board); this view
+  // owns "how is this merchant doing".
+  var METRIC_DAYS = 7;
+
+  function pct(v) { return (Number(v || 0) * 100).toFixed(1) + '%'; }
+  function usd(v) {
+    var n = Number(v || 0);
+    // Six decimals below a cent: LLM cost per turn really is that small, and
+    // rounding it to "$0.00" makes the cost panel look broken.
+    return '$' + (n < 0.01 ? n.toFixed(6) : n.toFixed(4));
+  }
+
+  function statCard(label, value, hint) {
+    return '<div class="card"><div class="l">' + esc(label) + '</div>' +
+      '<div class="n">' + esc(value) + '</div>' +
+      (hint ? '<div class="l" style="margin-top:6px">' + esc(hint) + '</div>' : '') +
+      '</div>';
+  }
+
+  // A proportional split bar reads faster than two separate percentages: the
+  // whole point is the ratio between the parts.
+  function splitCard(title, parts, note) {
+    var total = parts.reduce(function (a, p) { return a + Number(p[1] || 0); }, 0);
+    if (!total) {
+      return '<div class="card full"><div class="l">' + esc(title) + '</div>' +
+        '<div style="margin-top:8px"><span class="badge">暂无数据</span></div></div>';
+    }
+    var segs = '', legend = '';
+    parts.forEach(function (p) {
+      var v = Number(p[1] || 0);
+      var w = (v / total) * 100;
+      if (w > 0) segs += '<i style="width:' + w.toFixed(2) + '%;background:' + p[2] + '"></i>';
+      legend += '<span><em style="background:' + p[2] + '"></em>' + esc(p[0]) +
+        ' ' + v + '（' + w.toFixed(1) + '%）</span>';
+    });
+    return '<div class="card full"><div class="l">' + esc(title) + '</div>' +
+      '<div class="ratio">' + segs + '</div>' +
+      '<div class="legend">' + legend + '</div>' +
+      (note ? '<div class="l" style="margin-top:8px">' + esc(note) + '</div>' : '') +
+      '</div>';
+  }
+
+  function group(title, obj) {
+    var keys = Object.keys(obj || {});
+    if (!keys.length) {
+      return '<div class="card full"><div class="l">' + esc(title) + '</div>' +
+        '<div style="margin-top:8px"><span class="badge">暂无数据</span></div></div>';
+    }
+    // A row of chips ("refund · 12") makes a distribution hard to read at a
+    // glance; proportional bars show the shape of the traffic directly.
+    var values = keys.map(function (k) { return Number(obj[k]) || 0; });
+    var total = values.reduce(function (a, b) { return a + b; }, 0);
+    var max = Math.max.apply(null, values) || 1;
+    var bars = keys.map(function (k) {
+      var v = Number(obj[k]) || 0;
+      return '<div class="bar"><span class="bl" title="' + esc(k) + '">' + esc(k) + '</span>' +
+        '<span class="bt"><span class="bf" style="width:' + ((v / max) * 100).toFixed(1) +
+        '%"></span></span><span class="bv">' + v + '</span></div>';
+    }).join('');
+    return '<div class="card full"><div class="l">' + esc(title) +
+      '（合计 ' + total + '）</div><div class="bars">' + bars + '</div></div>';
+  }
+
+  // Daily trend. The backend fills empty days with zeros on purpose, so the
+  // x-axis stays continuous — a sparse series would let a quiet day vanish and
+  // read as "traffic was steady" when it was actually zero.
+  function trendCard(daily) {
+    if (!daily || !daily.length) return '';
+    var max = Math.max.apply(null, daily.map(function (d) { return d.messages; })) || 1;
+    var cols = '', axis = '';
+    daily.forEach(function (d) {
+      var h = (d.messages / max) * 100;
+      var dh = d.messages ? (d.degraded / d.messages) * h : 0;
+      // The degraded slice is drawn *inside* the bar rather than stacked on top,
+      // because it is a subset of the messages, not an additional category.
+      cols += '<div class="col" title="' + esc(d.day) + '：' + d.messages + ' 条消息，' +
+        d.answers + ' 条回答，其中 ' + d.degraded + ' 条降级，成本 ' + usd(d.cost_usd) + '">' +
+        '<u style="height:' + dh.toFixed(1) + '%"></u>' +
+        '<i style="height:' + Math.max(h - dh, 0).toFixed(1) + '%"></i></div>';
+      // Only label the endpoints and a midpoint: every day on a 30-day axis is
+      // unreadable at this width.
+      axis += '<span>' + (daily.length <= 8 || d === daily[0] ||
+        d === daily[daily.length - 1] ? esc(d.day.slice(5)) : '') + '</span>';
+    });
+    return '<div class="card full"><div class="l">每日消息量（橙色部分为降级回答）</div>' +
+      '<div class="spark">' + cols + '</div>' +
+      '<div class="spark axis">' + axis + '</div></div>';
+  }
+
+  function renderMetrics(o) {
+    var degradedRate = o.degraded_rate !== undefined
+      ? o.degraded_rate : (o.answers ? o.degraded_answers / o.answers : 0);
+    var html = [
+      statCard('会话数', o.conversations),
+      statCard('消息数', o.messages),
+      statCard('回答数', o.answers),
+      statCard('回答完成率', pct(o.completion_rate),
+               '降级率 ' + pct(degradedRate)),
+      statCard('转人工率', pct(o.handoff_rate),
+               o.handoff_conversations + ' / ' + o.conversations + ' 个会话'),
+      statCard('TTFT p50 / p95',
+               Math.round(o.ttft_ms_p50) + ' / ' + Math.round(o.ttft_ms_p95) + ' ms',
+               '完整回答 p95 ' + Math.round(o.latency_ms_p95) + ' ms'),
+      statCard('Token 输入 / 输出', o.tokens_in + ' / ' + o.tokens_out,
+               '缓存命中 ' + o.cache_hit_tokens + '（' + pct(o.cache_hit_rate) + '）'),
+      statCard('累计成本', usd(o.cost_usd),
+               o.answers ? '每回答约 ' + usd(o.cost_usd / o.answers) : ''),
+      statCard('今日配额剩余', o.quota.remaining + ' / ' + o.quota.messages_limit),
+    ].join('');
+
+    html += trendCard(o.daily);
+
+    // The two questions this platform exists to answer: was the model needed,
+    // and who wrote the reply. Both should sit near the deterministic end.
+    html += splitCard('意图判定来源', [
+      ['确定性规则', (o.intent_source || {}).deterministic || 0, '#2563eb'],
+      ['模型兜底', (o.intent_source || {}).llm || 0, '#b45309'],
+      ['默认兜底', (o.intent_source || {}).fallback || 0, '#b91c1c'],
+      ['其他', Object.keys(o.intent_source || {}).reduce(function (a, k) {
+        return a + (['deterministic', 'llm', 'fallback'].indexOf(k) < 0
+          ? Number(o.intent_source[k]) : 0); }, 0), '#9ca3af'],
+    ], '「模型兜底」占比持续上升说明关键词覆盖不足，该补确定性规则了。');
+
+    html += splitCard('回答来源', [
+      ['确定性模板', (o.compose_source || {}).deterministic || 0, '#2563eb'],
+      ['模型生成', (o.compose_source || {}).llm || 0, '#0f766e'],
+      ['降级回退', (o.compose_source || {}).degraded || 0, '#b91c1c'],
+      ['其他', Object.keys(o.compose_source || {}).reduce(function (a, k) {
+        return a + (['deterministic', 'llm', 'degraded'].indexOf(k) < 0
+          ? Number(o.compose_source[k]) : 0); }, 0), '#9ca3af'],
+    ], '「降级回退」非零说明模型没答上来、走了模板；这是「看起来正常但没调模型」的直接信号。');
+
+    html += group('意图分布', o.intent_distribution);
+    html += group('工具调用状态', o.tool_status);
+    html += group('审批状态', o.approval_status);
+    return html;
+  }
+
+  function loadMetrics(days) {
+    if (days) METRIC_DAYS = days;
+    var box = $('metrics');
+    box.innerHTML = '<div class="empty">加载中…</div>';
+    return api('/admin/overview?days=' + METRIC_DAYS).then(function (o) {
+      box.innerHTML = renderMetrics(o);
+      $('metric-stamp').textContent =
+        '窗口 ' + o.window_days + ' 天 · 更新于 ' + new Date().toLocaleTimeString();
+    }).catch(function (e) {
+      box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+      reportError(e, '加载指标失败');
+    });
+  }
+
+  // ---- boot ------------------------------------------------------------- //
+  if (store.token) { showApp(); } else { showLogin(''); }
+})();
+</script>
+</body>
+</html>

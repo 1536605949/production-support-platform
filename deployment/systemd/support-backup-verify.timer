@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly verification that the latest support-platform backup restores
+
+[Timer]
+# Sunday 04:30 — an hour after the nightly backup window, so the archive being
+# verified is the one from the same morning.
+OnCalendar=Sun *-*-* 04:30:00
+Persistent=true
+Unit=support-backup-verify.service
+
+[Install]
+WantedBy=timers.target

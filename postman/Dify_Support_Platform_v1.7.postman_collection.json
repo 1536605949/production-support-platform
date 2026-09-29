@@ -1,0 +1,215 @@
+{
+  "info": {
+    "name": "Dify Support Platform v1.7.1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "business",
+      "value": "http://localhost:9000"
+    },
+    {
+      "key": "dify",
+      "value": "https://api.dify.ai/v1"
+    },
+    {
+      "key": "dify_api_key",
+      "value": "REPLACE_ME"
+    },
+    {
+      "key": "tool_api_key",
+      "value": "dev-tool-key"
+    },
+    {
+      "key": "reviewer_api_key",
+      "value": "dev-reviewer-key"
+    },
+    {
+      "key": "proposal_id",
+      "value": "RP-REPLACE_ME"
+    }
+  ],
+  "item": [
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{gateway}}/api/healthz"
+          }
+        },
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Demo-User",
+                "value": "user001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\": \"Refund policy\"}"
+            },
+            "url": "{{gateway}}/api/chat"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Business",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{business}}/healthz"
+          }
+        },
+        {
+          "name": "Owned Order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tool-API-Key",
+                "value": "{{tool_api_key}}"
+              }
+            ],
+            "url": "{{business}}/orders/ORD-1001?user_id=user001"
+          }
+        },
+        {
+          "name": "Create Refund Proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tool-API-Key",
+                "value": "{{tool_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_id\": \"user001\", \"order_id\": \"ORD-1001\", \"reason\": \"portfolio demo\"}"
+            },
+            "url": "{{business}}/refunds/proposals"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Capture the id so the execute calls below name the same proposal",
+                  "// they are consuming. Run the folder in order.",
+                  "const body = pm.response.json();",
+                  "if (body && body.proposal_id) { pm.collectionVariables.set('proposal_id', body.proposal_id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execute Before Review (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tool-API-Key",
+                "value": "{{tool_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_id\": \"user001\", \"order_id\": \"ORD-1001\", \"proposal_id\": \"{{proposal_id}}\"}"
+            },
+            "url": "{{business}}/refunds/execute"
+          }
+        },
+        {
+          "name": "Human Approve (reviewer credential)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Reviewer-API-Key",
+                "value": "{{reviewer_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_id\": \"user001\", \"order_id\": \"ORD-1001\", \"decision\": \"approve\", \"review_comment\": \"human approved\"}"
+            },
+            "url": "{{business}}/refunds/review"
+          }
+        },
+        {
+          "name": "Execute After Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tool-API-Key",
+                "value": "{{tool_api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_id\": \"user001\", \"order_id\": \"ORD-1001\", \"proposal_id\": \"{{proposal_id}}\"}"
+            },
+            "url": "{{business}}/refunds/execute"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Direct Dify",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{dify_api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"inputs\": {}, \"query\": \"Refund policy\", \"response_mode\": \"blocking\", \"conversation_id\": \"\", \"user\": \"user001\"}"
+        },
+        "url": "{{dify}}/chat-messages"
+      }
+    }
+  ]
+}

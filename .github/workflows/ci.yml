@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Compile Python sources
+        # ``migrations`` is included so a syntax error in a migration is caught
+        # here rather than during a deploy.
+        run: python -m compileall -q gateway business_service migrations scripts evaluation tests
+      - name: Migration renders for PostgreSQL
+        # Offline mode (``--sql``) needs no database, but it does exercise the
+        # whole revision chain against the real PostgreSQL dialect. A migration
+        # that only works on SQLite fails here instead of in production.
+        env:
+          DATABASE_URL: postgresql+psycopg://probe:probe@localhost:5432/probe
+        run: |
+          python -m alembic -c alembic.ini upgrade head --sql > /tmp/schema.sql
+          test -s /tmp/schema.sql
+          grep -q "CREATE TABLE" /tmp/schema.sql
+      - name: Run release gate
+        # The gate validates every config file, regenerates the Grafana
+        # dashboard and fails if the committed JSON has drifted, checks the
+        # alembic revision chain, then runs pytest. That pytest run includes
+        # ``tests/test_eval_dataset.py``, which replays the badcase dataset from
+        # ``evaluation/`` against the in-process app — so routing, ownership,
+        # handoff and injection regressions are caught here on every commit.
+        #
+        # The live layers (public probe / DOM smoke / real LLM call / answer
+        # quality against a recorded baseline) need a running stack and are run
+        # from the deploy runbook with LIVE_ACCEPTANCE=1.
+        run: python scripts/release_gate.py

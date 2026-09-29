@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: Enterprise Business Support Tools
+  version: 2.6.0
+  description: >-
+    Agent-facing tools for Dify. Configure X-Tool-API-Key as the provider
+    credential. This credential can create a refund proposal but cannot approve it.
+servers:
+  - url: https://YOUR-BUSINESS-SERVICE.example.com
+security:
+  - ToolApiKey: []
+paths:
+  /orders/{order_id}:
+    get:
+      operationId: get_order
+      summary: Query a specific order owned by the current user
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema: {type: string}
+        - in: query
+          name: user_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Order record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id: {type: string}
+                  user_id: {type: string}
+                  status: {type: string}
+                  amount: {type: number}
+                  refund_available: {type: boolean}
+        '404': {description: Not found or not owned by user}
+  /accounts/{user_id}:
+    get:
+      operationId: get_account
+      summary: Query current user's account
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: {type: string}
+        - in: query
+          name: requester_user_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Account record}
+  /tickets:
+    post:
+      operationId: create_ticket
+      summary: Create a low-risk customer support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, issue]
+              properties:
+                user_id: {type: string}
+                issue: {type: string}
+      responses:
+        '200': {description: Ticket created}
+  /refunds/proposals:
+    post:
+      operationId: create_refund_proposal
+      summary: Create a refund proposal only; this never executes a refund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, order_id, reason]
+              properties:
+                user_id: {type: string}
+                order_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200':
+          description: Proposal created or existing open proposal returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposal_id: {type: string}
+                  order_id: {type: string}
+                  status:
+                    type: string
+                    enum: [pending_review, approved]
+        '400': {description: Refund is not available}
+        '404': {description: Order not found or not owned by user}
+  /refunds/execute:
+    post:
+      operationId: execute_refund
+      summary: Execute only a proposal that was approved through a separate reviewer credential
+      description: >-
+        The service ignores no client-supplied approval flag; it reads approved state
+        from the business database. ``proposal_id`` is required: the caller must name
+        the approval it is consuming, so "the proposal a human approved" and "the
+        proposal this call consumed" are provably the same row. A name that does not
+        resolve to an approved proposal for this user and order is refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, order_id, proposal_id]
+              properties:
+                user_id: {type: string}
+                order_id: {type: string}
+                proposal_id: {type: string}
+      responses:
+        '200': {description: Refund accepted for processing}
+        '409': {description: No approved proposal or approval already consumed}
+  /skus/{sku_id}:
+    get:
+      operationId: get_sku
+      summary: Query product spec, live stock and price
+      description: >-
+        The catalogue is the only place stock and price are stated. Read-only and
+        not user-scoped — a product is not owned by anyone.
+      parameters:
+        - in: path
+          name: sku_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Product record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sku_id: {type: string}
+                  name: {type: string}
+                  spec: {type: string}
+                  category: {type: string}
+                  stock: {type: integer}
+                  price: {type: number}
+                  status: {type: string}
+                  in_stock: {type: boolean}
+        '404': {description: SKU not found}
+  /aftersale/eligibility:
+    post:
+      operationId: check_aftersale_eligibility
+      summary: Check an order against the structured after-sale rules
+      description: >-
+        Decides "can this order be returned" from the aftersale_rule table rather
+        than from a model. ``eligible`` is three-valued: true, false, or null.
+        null means the inputs to decide are missing (no SKU on the order, no rule
+        for the category, unknown signing time) and MUST NOT be treated as a
+        refusal. This tool is read-only and never executes a refund; it is what
+        lets the Agent refuse one, and it is a POST because the answer depends on
+        who is asking and a query-string identity would land in every access log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, order_id]
+              properties:
+                user_id: {type: string}
+                order_id: {type: string}
+                rule_type: {type: string, default: return_no_reason}
+      responses:
+        '200':
+          description: Eligibility verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id: {type: string}
+                  sku_id: {type: string}
+                  sku_name: {type: string}
+                  category: {type: string}
+                  rule_id: {type: string}
+                  policy: {type: string}
+                  eligible: {type: boolean, nullable: true}
+                  reason: {type: string}
+                  deadline: {type: string}
+        '404': {description: Order not found or not owned by user}
+components:
+  securitySchemes:
+    ToolApiKey:
+      type: apiKey
+      in: header
+      name: X-Tool-API-Key

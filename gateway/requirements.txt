@@ -1,0 +1,13 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+pydantic==2.11.3
+pydantic-settings==2.8.1
+sqlalchemy==2.0.39
+psycopg[binary]==3.2.6
+prometheus-client==0.21.1
+redis==5.2.1
+# Schema migrations. Lives here rather than in a separate image because the
+# migration tree needs both services' models (they share one database) and the
+# gateway image is the one that already carries the schema-owning code.
+alembic==1.18.5

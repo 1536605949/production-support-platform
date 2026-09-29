@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.env
+.env.*
+!.env.example
+!.env.production.example
+data
+*.db
+backups
+evaluation/latest_report.json
