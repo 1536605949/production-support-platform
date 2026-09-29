@@ -23,7 +23,32 @@ worded perfectly while the system took the wrong path to it — asked the wrong
 tool, skipped a handoff it should have made, or silently degraded to the
 template. Those are invisible in the text, and they are exactly the regressions
 worth catching, so each case may now assert on the **trajectory**: intent, tool,
-tool status, handoff level, degradation.
+tool status, handoff level, degradation, and the **plan**.
+
+Why the plan is asserted separately from the tool
+-------------------------------------------------
+``expect.tool`` names the tool that *ran*. It cannot see the graph the tool ran
+inside. For the refund path the graph is the whole point: step 3 may only
+consume the ``proposal_id`` that step 2 produced, and if that edge is dropped the
+turn still calls ``execute_refund`` and still looks right in the audit trail —
+it just does so against a proposal the caller named by hand. So the plan gets its
+own assertions (``plan_status`` / ``plan_steps`` / ``plan_dependencies`` /
+``plan_rejection_reason``), and they are checked against the *verified* graph
+rather than the observed side effects.
+
+``plan_status: null`` is a supported value, not a missing one: the trunk skips
+planning entirely once ``handoff_level >= 2``, so "there is no plan" is the
+correct expectation for a turn that must escalate. No dataset case pins it —
+which level the frustration counter lands on is not stable enough to assert —
+so ``tests/test_eval_plan_assertions.py`` covers it with a synthetic body. A
+supported key that nothing exercises is untested code, and this one is exactly
+the kind that would rot silently.
+
+One thing these assertions deliberately cannot cover here: a *rejected* plan.
+The planner is deterministic code, so an invalid plan means a bug in the planner
+or a drift between a tool's declared outputs and the step that consumes them —
+not something a chat message can provoke. ``tests/test_plan_verification.py``
+covers the rejection path directly; this file covers the plans that reach users.
 
 What this deliberately does NOT cover
 -------------------------------------
@@ -208,6 +233,38 @@ def evaluate(case: dict, body: dict) -> list[str]:
         if actual != expect['degraded']:
             failures.append(f'降级={actual}，期望 {expect["degraded"]}')
 
+    # -- plan -------------------------------------------------------------- #
+    # Asserted against the graph the verifier *approved before the first tool
+    # ran*, not against what the tools then did. That distinction is what makes
+    # these assertions state-independent: the refund plan is the same three
+    # steps whether or not ORD-1001 happens to be refundable today, because the
+    # plan is built from (intent, slots, phrasing) and the eligibility verdict
+    # only gates execution. A case can therefore pin the money path's shape
+    # without moving any state.
+    plan = body.get('plan') or None
+    steps = (plan or {}).get('steps') or []
+    validation = (plan or {}).get('validation') or {}
+
+    if 'plan_status' in expect:
+        actual = None if plan is None else ('passed' if validation.get('ok') else 'rejected')
+        if actual != expect['plan_status']:
+            failures.append(f'计划状态={actual!r}，期望 {expect["plan_status"]!r}')
+
+    if 'plan_steps' in expect:
+        actual = [step.get('tool') for step in steps]
+        if actual != expect['plan_steps']:
+            failures.append(f'计划步骤={actual}，期望 {expect["plan_steps"]}')
+
+    if 'plan_dependencies' in expect:
+        actual = {step.get('step_id'): list(step.get('depends_on') or []) for step in steps}
+        if actual != expect['plan_dependencies']:
+            failures.append(f'计划依赖={actual}，期望 {expect["plan_dependencies"]}')
+
+    if 'plan_rejection_reason' in expect:
+        actual = validation.get('reason') or ''
+        if actual != expect['plan_rejection_reason']:
+            failures.append(f'计划拒绝原因={actual!r}，期望 {expect["plan_rejection_reason"]!r}')
+
     return failures
 
 
@@ -241,6 +298,12 @@ def run_case(case: dict, token: str) -> dict:
 
     latency = round(time.perf_counter() - started, 3)
     failures = evaluate(case, body or {})
+    # ``observed`` is what makes a failure diagnosable after the fact: the
+    # report is the only record of a run, so it has to carry the plan shape and
+    # not just the tool name — otherwise "计划步骤=[...] 与期望不符" leaves the
+    # reader guessing what the actual graph was.
+    plan = (body or {}).get('plan') or None
+    validation = (plan or {}).get('validation') or {}
     return {
         'id': case['id'],
         'kind': case.get('kind', ''),
@@ -256,6 +319,8 @@ def run_case(case: dict, token: str) -> dict:
             'tool_status': (body.get('tool') or {}).get('status'),
             'handoff_level': body.get('handoff_level'),
             'degraded': body.get('degraded'),
+            'plan_status': None if plan is None else ('passed' if validation.get('ok') else 'rejected'),
+            'plan_steps': [step.get('tool') for step in (plan or {}).get('steps') or []],
         },
     }
 

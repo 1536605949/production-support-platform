@@ -118,7 +118,7 @@ LIVE_ACCEPTANCE=1 .venv/Scripts/python.exe scripts/release_gate.py
 
 | 层 | 覆盖什么 | 覆盖不到什么 |
 |---|---|---|
-| `pytest`（297，6 项显式跳过） | 进程内逻辑：意图、治理、租户、工作流、迁移树、数据集、商品目录与售后规则 | 边缘 nginx 前缀重写、Caddy 缓冲、真实 TLS、真实模型 |
+| `pytest`（315，6 项显式跳过） | 进程内逻辑：意图、治理、租户、工作流、迁移树、数据集、商品目录与售后规则、plan 校验、响应契约 | 边缘 nginx 前缀重写、Caddy 缓冲、真实 TLS、真实模型 |
 | `acceptance_probe.py`（55） | 公网真实链路：鉴权/路由/审批/持久化/SSE/指标 | 前端 JS 能不能跑起来；模型是否真被调用 |
 | `llm_probe.py`（30） | 模型确实被调用：token 与成本来自 provider 的 `usage` | 答案质量 |
 | `ui_smoke_test.mjs`（17） | 真实 DOM 里跑真实页面：登录、流式渲染、Tab、退出 | 后端细节（它只关心页面能否用） |

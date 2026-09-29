@@ -1,5 +1,5 @@
 Dify Production Support Platform release manifest
-files: 175
+files: 177
 
 .dockerignore
 .env.production.example
@@ -151,6 +151,7 @@ tests/test_config_guard.py
 tests/test_dsl_static.py
 tests/test_error_contract.py
 tests/test_eval_dataset.py
+tests/test_eval_plan_assertions.py
 tests/test_gateway_api.py
 tests/test_gateway_dify_client.py
 tests/test_governance.py
@@ -163,6 +164,7 @@ tests/test_openapi_contract.py
 tests/test_plan_verification.py
 tests/test_products_and_rules.py
 tests/test_release_gate.py
+tests/test_response_contract.py
 tests/test_schema_namespaces.py
 tests/test_tenancy_auth.py
 tests/test_version_consistency.py

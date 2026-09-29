@@ -108,6 +108,47 @@ check_aftersale_eligibility ──requires(eligible is not False)──▶ creat
 （`SERVICE_VERSION`），且刻意**不是** `Settings` 字段：一个能被环境变量覆盖的
 版本号，回答不了「这是哪个构建」。
 
+### 7. 修掉：plan 写进了响应模型之外，于是被静默丢掉
+
+决策检查器（运营台）和评测门禁都需要 plan 才能工作，而 plan 在 v2.6 的
+**两条响应路径上都到不了客户端**。
+
+原因不是漏了赋值，是漏了**声明**：`TurnResult.plan` 有了，
+`_to_response()` 也老老实实写着 `plan=result.plan`，但 `ChatResponse` 上
+没有 `plan` 字段。Pydantic 对未声明的关键字参数是**忽略**而不是报错——
+于是阻塞接口和 SSE 的 `final` 事件都把 plan 丢了，没有异常、没有日志、
+测试全绿。运营台的 `renderPlan()` 渲染不出任何东西，评测门禁里
+「计划是什么」这件事根本无从断言。
+
+抓到它的不是单元测试，是给 badcase 数据集加上 `plan_status` 之后跑
+`test_eval_dataset.py` 得到的 11 条失败——**断言本身把 bug 找出来了**。
+
+修法：`ChatResponse` 补上 `plan` 字段；并加 `tests/test_response_contract.py`
+把这一整类问题封住——它按**字段集合**断言，要求 `TurnResult` 上每个公开字段
+要么出现在响应模型上、要么出现在响应 `metadata` 里、要么被显式列进
+「刻意不外露」集合（目前只有 `error`，因为内部错误文本属于日志不属于回复）。
+所以下一个新增字段不会再悄悄消失。这个守卫做过负向验证：给 `TurnResult`
+加一个字段，守卫立刻点名它。
+
+### 8. 评测门禁开始断言 plan 的形状
+
+`evaluation/run_eval.py` 新增四个期望键：`plan_status` / `plan_steps` /
+`plan_dependencies` / `plan_rejection_reason`。已有的 18 条 badcase 里，
+17 条现在同时钉住计划，其中「钉了工具名的用例必须同时钉住计划步骤」是一条
+守卫不变量——**工具对了但图错了是看不见的**，而这正是退款链路最贵的错误：
+step 3 不再消费 step 2 的 `proposal_id` 时，`execute_refund` 照样被调用、
+回答照样正确，只是退回「按某个已被批准的 proposal 执行」。
+
+两点刻意的取舍：
+
+- `plan_status: null` 是合法值，不是缺失值——`handoff_level >= 2` 时主干
+  根本不规划。没有数据集用例钉它（挫败感计数落在哪一级不够稳定），
+  由 `tests/test_eval_plan_assertions.py` 用合成响应覆盖。
+- **没有任何用例声称能触发「计划被拒」**，因为确定性 planner 做不到这件事；
+  编一条会通过的假用例，比留下这个空缺更糟。拒绝路径由
+  `tests/test_plan_verification.py` 用手工构造的非法 plan 覆盖。
+  有一条测试专门守着「不许往数据集里塞这种用例」。
+
 ### 明确不做
 
 这一版**不做**：pgvector（embedding 仍存 JSON）、多副本与主从、数据库分片、

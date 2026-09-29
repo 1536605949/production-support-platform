@@ -87,6 +87,18 @@ class ChatResponse(BaseModel):
     suggestions: list[str] = Field(default_factory=list)
     sources: list[SourceOut] = Field(default_factory=list)
     tool: dict[str, Any] | None = None
+    #: The verified plan for this turn: its steps, their dependency edges, and
+    #: the ledger of every gate it passed — or the reason it was rejected.
+    #:
+    #: This field was missing when ``plan`` was first added to ``TurnResult``,
+    #: while ``_to_response`` already passed ``plan=result.plan`` into the
+    #: constructor. Pydantic ignores undeclared keyword arguments, so the plan
+    #: was **silently dropped from both the blocking and the streaming
+    #: response**: the operator console's decision inspector had nothing to
+    #: render, and the evaluation gate could not see a plan at all. Nothing
+    #: failed — which is why the guard lives in
+    #: ``tests/test_response_contract.py`` rather than in a comment.
+    plan: dict[str, Any] | None = None
     approval_id: str = ''
     workflow_run_id: str = ''
     degraded: bool = False
